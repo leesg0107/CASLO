@@ -1,0 +1,15 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/leesg0107/CASLO"
+
+[workspace.dependencies]
+nalgebra = { version = "0.33", features = ["serde-serialize"] }
+serde = { version = "1.0", features = ["derive"] }
+thiserror = "2.0"
+approx = "0.5"
