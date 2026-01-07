@@ -1,0 +1,14 @@
+[package]
+name = "caslo-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Cable-Suspended Load Control System - Core library implementing dynamics, control, and estimation for multi-quadrotor load manipulation"
+
+[dependencies]
+nalgebra = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }
