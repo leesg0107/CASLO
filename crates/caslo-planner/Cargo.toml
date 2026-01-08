@@ -1,0 +1,43 @@
+[package]
+name = "caslo-planner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Online kinodynamic motion planner for cable-suspended load systems using ACADOS"
+
+[dependencies]
+caslo-core = { path = "../caslo-core" }
+nalgebra.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+# FFI dependencies
+libc = "0.2"
+
+[build-dependencies]
+# For compiling generated ACADOS C code
+cc = "1.0"
+# For generating Rust bindings from C headers
+bindgen = "0.70"
+
+[dev-dependencies]
+approx.workspace = true
+kiss3d = "0.35"
+nalgebra = "0.33"
+
+[features]
+default = []
+acados = []  # Enable ACADOS solver integration
+
+[[example]]
+name = "full_system"
+path = "examples/full_system.rs"
+
+[[example]]
+name = "visualize"
+path = "examples/visualize.rs"
+
+[[example]]
+name = "visualize_sim"
+path = "examples/visualize_sim.rs"

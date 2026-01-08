@@ -1,0 +1,15 @@
+# CASLO OCP Code Generation Dependencies
+#
+# Install ACADOS first:
+#   git clone https://github.com/acados/acados.git
+#   cd acados && mkdir build && cd build
+#   cmake .. && make -j4 && make install
+#
+# Set environment variables:
+#   export ACADOS_SOURCE_DIR=/path/to/acados
+#   export LD_LIBRARY_PATH=$ACADOS_SOURCE_DIR/lib:$LD_LIBRARY_PATH
+
+casadi>=3.6.0
+numpy>=1.24.0
+scipy>=1.10.0
+matplotlib>=3.7.0  # For visualization/debugging
