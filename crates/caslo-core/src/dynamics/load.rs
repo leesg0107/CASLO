@@ -113,8 +113,8 @@ impl LoadDynamics {
             cable_force += *t * s;
         }
 
-        // Gravity in world frame (z-down for NED)
-        let gravity = Vector3::new(0.0, 0.0, GRAVITY);
+        // Gravity in world frame (Z-UP convention from paper: g = [0, 0, -9.81])
+        let gravity = Vector3::new(0.0, 0.0, -GRAVITY);
 
         -cable_force / self.params.mass + gravity
     }
@@ -228,10 +228,10 @@ mod tests {
 
         let acc = load.compute_acceleration(&tensions, &directions);
 
-        // Should be pure gravity (z-down)
+        // Should be pure gravity (Z-UP: gravity points down = negative Z)
         assert_relative_eq!(acc.x, 0.0, epsilon = 1e-10);
         assert_relative_eq!(acc.y, 0.0, epsilon = 1e-10);
-        assert_relative_eq!(acc.z, GRAVITY, epsilon = 1e-10);
+        assert_relative_eq!(acc.z, -GRAVITY, epsilon = 1e-10);
     }
 
     #[test]
@@ -244,11 +244,11 @@ mod tests {
 
         let tensions = vec![tension_per_cable, tension_per_cable, tension_per_cable];
         // Cable direction convention: sᵢ points from quadrotor toward load attachment
-        // For hovering with quads above load in NED (z-down), cables point down (+z)
+        // For hovering with quads above load in Z-UP, cables point down (-z)
         let directions = vec![
-            Vector3::new(0.0, 0.0, 1.0),
-            Vector3::new(0.0, 0.0, 1.0),
-            Vector3::new(0.0, 0.0, 1.0),
+            Vector3::new(0.0, 0.0, -1.0),
+            Vector3::new(0.0, 0.0, -1.0),
+            Vector3::new(0.0, 0.0, -1.0),
         ];
 
         let acc = load.compute_acceleration(&tensions, &directions);
@@ -264,11 +264,11 @@ mod tests {
 
         // Symmetric forces through center of mass
         let tensions = vec![1.0, 1.0, 1.0];
-        // Cable direction points from quad toward load (down in NED)
+        // Cable direction points from quad toward load (down in Z-UP = -Z)
         let directions = vec![
-            Vector3::new(0.0, 0.0, 1.0),
-            Vector3::new(0.0, 0.0, 1.0),
-            Vector3::new(0.0, 0.0, 1.0),
+            Vector3::new(0.0, 0.0, -1.0),
+            Vector3::new(0.0, 0.0, -1.0),
+            Vector3::new(0.0, 0.0, -1.0),
         ];
 
         let alpha = load.compute_angular_acceleration(&state, &tensions, &directions);

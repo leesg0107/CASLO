@@ -51,6 +51,11 @@ extern "C" {
 
     // Solver creation and reset
     pub fn caslo_3quad_acados_create(capsule: *mut caslo_3quad_solver_capsule) -> c_int;
+    pub fn caslo_3quad_acados_create_with_discretization(
+        capsule: *mut caslo_3quad_solver_capsule,
+        n_time_steps: c_int,
+        new_time_steps: *const c_double,
+    ) -> c_int;
     pub fn caslo_3quad_acados_reset(
         capsule: *mut caslo_3quad_solver_capsule,
         reset_qp_solver_mem: c_int,
@@ -106,7 +111,6 @@ extern "C" {
         config: *mut ocp_nlp_config,
         dims: *mut ocp_nlp_dims,
         in_: *mut ocp_nlp_in,
-        out: *mut ocp_nlp_out,
         stage: c_int,
         field: *const i8,
         value: *mut c_void,
@@ -116,6 +120,7 @@ extern "C" {
         config: *mut ocp_nlp_config,
         dims: *mut ocp_nlp_dims,
         out: *mut ocp_nlp_out,
+        in_: *mut ocp_nlp_in,
         stage: c_int,
         field: *const i8,
         value: *mut c_void,
@@ -131,7 +136,6 @@ extern "C" {
     );
 
     pub fn ocp_nlp_get(
-        config: *mut ocp_nlp_config,
         solver: *mut ocp_nlp_solver,
         field: *const i8,
         value: *mut c_void,
@@ -157,7 +161,13 @@ impl AcadosCapsule {
                 return Err(-1);
             }
 
-            let status = caslo_3quad_acados_create(capsule);
+            // Use create_with_discretization like the C test does
+            // N=20 is the default horizon, null time_steps uses default discretization
+            let status = caslo_3quad_acados_create_with_discretization(
+                capsule,
+                N as c_int,
+                std::ptr::null(),
+            );
             if status != 0 {
                 caslo_3quad_acados_free_capsule(capsule);
                 return Err(status);
@@ -219,24 +229,27 @@ impl AcadosCapsule {
     }
 
     /// Set reference trajectory at a stage
+    /// For stages 0..N-1: y_ref should have NY (24) elements
+    /// For terminal stage N: y_ref should have NYN (12) elements
     pub fn set_reference(&mut self, stage: usize, y_ref: &[f64]) -> Result<(), i32> {
         if stage > N {
             return Err(-1);
         }
 
-        // Terminal stage uses different field name
-        let field = if stage == N {
-            b"yref_e\0".as_ptr() as *const i8
-        } else {
-            b"yref\0".as_ptr() as *const i8
-        };
+        // Validate dimensions
+        let expected_len = if stage == N { NYN } else { NY };
+        if y_ref.len() != expected_len {
+            return Err(-2);
+        }
+
+        // Use "yref" for all stages (NONLINEAR_LS cost type)
+        let field = b"yref\0".as_ptr() as *const i8;
 
         unsafe {
             let status = ocp_nlp_cost_model_set(
                 self.config,
                 self.dims,
                 self.nlp_in,
-                self.nlp_out,
                 stage as c_int,
                 field,
                 y_ref.as_ptr() as *mut c_void,
@@ -260,6 +273,7 @@ impl AcadosCapsule {
                 self.config,
                 self.dims,
                 self.nlp_out,
+                self.nlp_in,
                 stage as c_int,
                 field,
                 x.as_ptr() as *mut c_void,
@@ -280,6 +294,7 @@ impl AcadosCapsule {
                 self.config,
                 self.dims,
                 self.nlp_out,
+                self.nlp_in,
                 stage as c_int,
                 field,
                 u.as_ptr() as *mut c_void,
@@ -304,6 +319,52 @@ impl AcadosCapsule {
             if status != 0 {
                 return Err(status);
             }
+        }
+        Ok(())
+    }
+
+    /// Initialize trajectory with given state and control
+    /// This should be called before solve() for the first solve or when warm start is not available
+    pub fn initialize_trajectory(&mut self, x_init: &[f64], u_init: &[f64]) -> Result<(), i32> {
+        if x_init.len() != NX || u_init.len() != NU {
+            return Err(-1);
+        }
+
+        let x_field = b"x\0".as_ptr() as *const i8;
+        let u_field = b"u\0".as_ptr() as *const i8;
+
+        unsafe {
+            // Initialize all shooting nodes
+            for i in 0..N {
+                ocp_nlp_out_set(
+                    self.config,
+                    self.dims,
+                    self.nlp_out,
+                    self.nlp_in,
+                    i as c_int,
+                    x_field,
+                    x_init.as_ptr() as *mut c_void,
+                );
+                ocp_nlp_out_set(
+                    self.config,
+                    self.dims,
+                    self.nlp_out,
+                    self.nlp_in,
+                    i as c_int,
+                    u_field,
+                    u_init.as_ptr() as *mut c_void,
+                );
+            }
+            // Terminal state
+            ocp_nlp_out_set(
+                self.config,
+                self.dims,
+                self.nlp_out,
+                self.nlp_in,
+                N as c_int,
+                x_field,
+                x_init.as_ptr() as *mut c_void,
+            );
         }
         Ok(())
     }
@@ -356,7 +417,6 @@ impl AcadosCapsule {
         let field = b"time_tot\0".as_ptr() as *const i8;
         unsafe {
             ocp_nlp_get(
-                self.config,
                 self.solver,
                 field,
                 &mut time as *mut f64 as *mut c_void,
@@ -371,7 +431,6 @@ impl AcadosCapsule {
         let field = b"sqp_iter\0".as_ptr() as *const i8;
         unsafe {
             ocp_nlp_get(
-                self.config,
                 self.solver,
                 field,
                 &mut iters as *mut i32 as *mut c_void,

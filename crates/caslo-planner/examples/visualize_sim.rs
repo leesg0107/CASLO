@@ -21,16 +21,16 @@ use kiss3d::scene::SceneNode;
 use kiss3d::nalgebra as na;
 use na::{Point3, Translation3};
 
-/// Convert physics coordinates (NED: Z-down) to visualization coordinates (Y-up)
-/// Physics NED: X=north, Y=east, Z=down (positive Z = underground)
-/// Kiss3d:      X=right, Y=up,   Z=forward
-/// Transform: viz_x = physics_x, viz_y = -physics_z, viz_z = physics_y
+/// Convert physics coordinates (Z-UP from paper) to visualization coordinates (Y-up)
+/// Physics Z-UP: X=forward, Y=left, Z=up (positive Z = above ground)
+/// Kiss3d:       X=right,   Y=up,  Z=forward
+/// Transform: viz_x = physics_x, viz_y = physics_z (Z maps to Y), viz_z = physics_y
 fn to_viz(v: &nalgebra::Vector3<f64>) -> Point3<f32> {
-    Point3::new(v.x as f32, -v.z as f32, v.y as f32)
+    Point3::new(v.x as f32, v.z as f32, v.y as f32)
 }
 
 fn to_viz_translation(v: &nalgebra::Vector3<f64>) -> Translation3<f32> {
-    Translation3::new(v.x as f32, -v.z as f32, v.y as f32)
+    Translation3::new(v.x as f32, v.z as f32, v.y as f32)
 }
 
 // Import caslo-core
@@ -163,10 +163,10 @@ fn main() {
     let use_mpc = mpc_solver.is_some();
 
     // ==========================================
-    // 3. Initial State (NED: Z-down, negative Z = above ground)
+    // 3. Initial State (Z-UP from paper: positive Z = above ground)
     // ==========================================
-    let hover_position = Vector3::new(0.0, 0.0, -2.0);  // 2m above ground
-    let goal_position = Vector3::new(3.0, 2.0, -2.5);   // Farther goal for visibility
+    let hover_position = Vector3::new(0.0, 0.0, 2.0);   // 2m above ground in Z-UP
+    let goal_position = Vector3::new(3.0, 2.0, 2.5);    // Farther goal for visibility
     let mut target_position = hover_position; // Start at hover
 
     // Initial cable tension to hover (total thrust = weight)
@@ -180,12 +180,14 @@ fn main() {
         angular_velocity: Vector3::zeros(),
     };
 
-    // Cable direction convention: sᵢ points from quadrotor toward load attachment
-    // In NED (z-down), for quads above load, cables point in +Z direction
+    // Cable direction convention (from paper): s points from quad toward load (downward)
+    // In Z-UP: cables pointing DOWN = [0,0,-1] (negative Z is down)
+    // quad_pos = attachment - length * direction = attachment - length * [0,0,-1]
+    //          = attachment + [0,0,length], so quad is ABOVE attachment (more positive Z)
     let initial_cables = MultiCableState::new(vec![
-        CableState::new(Vector3::new(0.0, 0.0, 1.0), initial_tension),
-        CableState::new(Vector3::new(0.0, 0.0, 1.0), initial_tension),
-        CableState::new(Vector3::new(0.0, 0.0, 1.0), initial_tension),
+        CableState::new(Vector3::new(0.0, 0.0, -1.0), initial_tension),
+        CableState::new(Vector3::new(0.0, 0.0, -1.0), initial_tension),
+        CableState::new(Vector3::new(0.0, 0.0, -1.0), initial_tension),
     ]);
 
     let mut state = SystemState::new(
@@ -228,6 +230,29 @@ fn main() {
     goal_viz.set_color(1.0, 0.5, 0.0);
     goal_viz.set_local_translation(to_viz_translation(&goal_position));
 
+    // No-fly zones (obstacles) - similar to paper Fig. 4
+    // Obstacle 1: Between hover and goal (left side)
+    let mut obstacle1 = window.add_cube(0.8, 0.8, 1.5);
+    obstacle1.set_color(0.8, 0.2, 0.2);
+    obstacle1.set_local_translation(to_viz_translation(&Vector3::new(1.0, 1.0, 1.25)));
+
+    // Obstacle 2: Near goal (right side)
+    let mut obstacle2 = window.add_cube(0.6, 0.6, 2.0);
+    obstacle2.set_color(0.8, 0.2, 0.2);
+    obstacle2.set_local_translation(to_viz_translation(&Vector3::new(2.0, 1.5, 1.5)));
+
+    // Obstacle 3: Low obstacle to fly over
+    let mut obstacle3 = window.add_cube(1.2, 0.5, 0.8);
+    obstacle3.set_color(0.8, 0.2, 0.2);
+    obstacle3.set_local_translation(to_viz_translation(&Vector3::new(1.5, 0.5, 0.9)));
+
+    // Store obstacle positions and sizes for collision avoidance (half-extents)
+    let obstacles: Vec<(Vector3<f64>, Vector3<f64>)> = vec![
+        (Vector3::new(1.0, 1.0, 1.25), Vector3::new(0.4, 0.4, 0.75)),   // pos, half-size
+        (Vector3::new(2.0, 1.5, 1.5), Vector3::new(0.3, 0.3, 1.0)),
+        (Vector3::new(1.5, 0.5, 0.9), Vector3::new(0.6, 0.25, 0.4)),
+    ];
+
     // Camera (Y-up coordinate system, viewing NED scene)
     let eye = Point3::new(5.0, 4.0, 3.0);   // Looking from front-right-above
     let at = Point3::new(0.5, 2.0, 0.5);    // Looking at hover/goal area
@@ -242,10 +267,13 @@ fn main() {
 
     // Control output
     let mut desired_tensions = vec![initial_tension; num_quads];
-    let mut desired_directions = vec![Vector3::new(0.0, 0.0, 1.0); num_quads];
+    let mut desired_directions = vec![Vector3::new(0.0, 0.0, -1.0); num_quads];  // Z-UP: -Z is down
 
     println!("Controls:");
     println!("  Space: Pause/Resume");
+    println!("  W/S: Move target Y +/-");
+    println!("  A/D: Move target X +/-");
+    println!("  Q/E: Move target Z +/-");
     println!("  R: Reset");
     println!("  G: Go to goal");
     println!("  H: Hover at start");
@@ -276,11 +304,11 @@ fn main() {
                         orientation: UnitQuaternion::identity(),
                         angular_velocity: Vector3::zeros(),
                     };
-                    // Cable direction: +Z in NED (pointing from quad toward load)
+                    // Cable direction: -Z in Z-UP (pointing down from quad to load)
                     let initial_cables = MultiCableState::new(vec![
-                        CableState::new(Vector3::new(0.0, 0.0, 1.0), initial_tension),
-                        CableState::new(Vector3::new(0.0, 0.0, 1.0), initial_tension),
-                        CableState::new(Vector3::new(0.0, 0.0, 1.0), initial_tension),
+                        CableState::new(Vector3::new(0.0, 0.0, -1.0), initial_tension),
+                        CableState::new(Vector3::new(0.0, 0.0, -1.0), initial_tension),
+                        CableState::new(Vector3::new(0.0, 0.0, -1.0), initial_tension),
                     ]);
                     state = SystemState::new(
                         initial_load,
@@ -289,7 +317,7 @@ fn main() {
                         &dynamics.cables,
                     );
                     desired_tensions = vec![initial_tension; num_quads];
-                    desired_directions = vec![Vector3::new(0.0, 0.0, 1.0); num_quads];
+                    desired_directions = vec![Vector3::new(0.0, 0.0, -1.0); num_quads];  // Z-UP: -Z is down
                     println!("Reset to initial state");
                 }
                 kiss3d::event::WindowEvent::Key(kiss3d::event::Key::G, kiss3d::event::Action::Press, _) => {
@@ -299,6 +327,32 @@ fn main() {
                 kiss3d::event::WindowEvent::Key(kiss3d::event::Key::H, kiss3d::event::Action::Press, _) => {
                     target_position = hover_position;
                     println!("Target: Hover {:?}", hover_position);
+                }
+                // WASD/QE controls for goal movement
+                kiss3d::event::WindowEvent::Key(kiss3d::event::Key::W, kiss3d::event::Action::Press, _) => {
+                    target_position.y += 0.5;
+                    println!("Target: [{:.2}, {:.2}, {:.2}]", target_position.x, target_position.y, target_position.z);
+                }
+                kiss3d::event::WindowEvent::Key(kiss3d::event::Key::S, kiss3d::event::Action::Press, _) => {
+                    target_position.y -= 0.5;
+                    println!("Target: [{:.2}, {:.2}, {:.2}]", target_position.x, target_position.y, target_position.z);
+                }
+                kiss3d::event::WindowEvent::Key(kiss3d::event::Key::A, kiss3d::event::Action::Press, _) => {
+                    target_position.x -= 0.5;
+                    println!("Target: [{:.2}, {:.2}, {:.2}]", target_position.x, target_position.y, target_position.z);
+                }
+                kiss3d::event::WindowEvent::Key(kiss3d::event::Key::D, kiss3d::event::Action::Press, _) => {
+                    target_position.x += 0.5;
+                    println!("Target: [{:.2}, {:.2}, {:.2}]", target_position.x, target_position.y, target_position.z);
+                }
+                kiss3d::event::WindowEvent::Key(kiss3d::event::Key::Q, kiss3d::event::Action::Press, _) => {
+                    target_position.z -= 0.5;
+                    target_position.z = target_position.z.max(0.5); // Don't go underground
+                    println!("Target: [{:.2}, {:.2}, {:.2}]", target_position.x, target_position.y, target_position.z);
+                }
+                kiss3d::event::WindowEvent::Key(kiss3d::event::Key::E, kiss3d::event::Action::Press, _) => {
+                    target_position.z += 0.5;
+                    println!("Target: [{:.2}, {:.2}, {:.2}]", target_position.x, target_position.y, target_position.z);
                 }
                 _ => {}
             }
@@ -322,8 +376,19 @@ fn main() {
                     let mut mpc_control: Option<OcpControl> = None;
 
                     if let Some(ref mut solver) = mpc_solver {
+                        // DEBUG: Print before MPC
+                        if trajectory_history.len() < 3 {
+                            println!("DEBUG: Converting state for MPC...");
+                        }
+
                         // Convert state for MPC
                         let ocp_state = system_to_ocp_state(&state);
+
+                        if trajectory_history.len() < 3 {
+                            let state_vec = ocp_state.to_vector();
+                            println!("DEBUG: State vector len={}, first 5: {:?}",
+                                state_vec.len(), &state_vec[..5.min(state_vec.len())]);
+                        }
 
                         // Generate reference trajectory
                         let reference = generate_reference(
@@ -333,9 +398,17 @@ fn main() {
                             2.0, // 2 second horizon
                         );
 
-                        // Solve MPC
-                        match solver.solve(&ocp_state, &reference, &SolveOptions::default()) {
-                            Ok(trajectory) => {
+                        if trajectory_history.len() < 3 {
+                            println!("DEBUG: Reference len={}, calling solve...", reference.len());
+                        }
+
+                        // Solve MPC (catch panics)
+                        let solve_result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                            solver.solve(&ocp_state, &reference, &SolveOptions::default())
+                        }));
+
+                        match solve_result {
+                            Ok(Ok(trajectory)) => {
                                 // Get the first control
                                 if let Some(control) = trajectory.controls.first() {
                                     mpc_control = Some(control.clone());
@@ -358,67 +431,166 @@ fn main() {
                                     }
                                 }
                             }
-                            Err(e) => {
-                                // Print all MPC failures
+                            Ok(Err(e)) => {
+                                // MPC solve returned an error
                                 if trajectory_history.len() % 100 == 0 || trajectory_history.len() < 10 {
-                                    println!("MPC failed: {:?}", e);
+                                    println!("MPC solve error: {:?}", e);
                                 }
+                            }
+                            Err(_panic) => {
+                                // MPC panicked - this shouldn't happen with proper FFI
+                                if trajectory_history.len() < 10 {
+                                    println!("MPC PANIC! Falling back to PID");
+                                }
+                                // Disable MPC after panic
+                                mpc_solver = None;
                             }
                         }
                     }
 
-                    // Fallback: use reactive controller if MPC not available or failed
+                    // Fallback: Simple position control without MPC
+                    // Paper Eq.2: v̇ = -1/m · Σᵢ tᵢsᵢ + g
+                    // For desired acceleration a: Σᵢ tᵢsᵢ = m*(g - a)
                     if mpc_control.is_none() {
                         let vel = state.load.velocity;
-                        let acc_des = position_controller.compute(
-                            &pos, &vel, &target_position, &Vector3::zeros(), &Vector3::zeros(), control_dt
-                        );
 
-                        // Simple force allocation
-                        let desired_total_force = Vector3::new(
-                            -load_mass * acc_des.x,
-                            -load_mass * acc_des.y,
-                            load_mass * (GRAVITY - acc_des.z),
-                        );
+                        // Simple PD position control with velocity limiting
+                        let pos_error = target_position - pos;
+                        let distance = pos_error.norm();
 
-                        let total_tension = desired_total_force.norm();
-                        let base_tension = (total_tension / num_quads as f64).clamp(0.3, 15.0);
-
-                        let force_dir = if total_tension > 0.01 {
-                            desired_total_force / total_tension
+                        // Desired velocity toward target (limited by distance)
+                        let max_vel: f64 = 1.5; // m/s max velocity
+                        let vel_des = if distance > 0.1 {
+                            pos_error.normalize() * max_vel.min(distance * 0.5)
                         } else {
-                            Vector3::new(0.0, 0.0, 1.0)
+                            Vector3::zeros()
+                        };
+                        let vel_error = vel_des - vel;
+
+                        // PD gains - higher damping to reduce overshoot
+                        let kp = 0.6;
+                        let kd = 2.0;  // Increased damping
+                        let acc_des = pos_error * kp + vel_error * kd;
+
+                        // Limit acceleration
+                        let max_acc = 1.0;
+                        let acc_clamped = if acc_des.norm() > max_acc {
+                            acc_des.normalize() * max_acc
+                        } else {
+                            acc_des
                         };
 
-                        // Limit tilt angle
-                        let max_tilt = 0.35;
-                        let horizontal = Vector3::new(force_dir.x, force_dir.y, 0.0);
-                        let horiz_mag = horizontal.norm();
+                        // Required total cable force: F_cable = m*(g - a) where g=[0,0,-9.81]
+                        // F_cable = m*[-ax, -ay, -9.81 - az]
+                        // For hover (a=0): F_cable = m*[0, 0, -9.81] (pointing DOWN)
+                        // Cable direction s points DOWN, tension t > 0
+                        // -Σ t*s = F_cable on load (force ON load is opposite to t*s)
+                        // So Σ t*s = -F_cable = m*[ax, ay, 9.81 + az] (pointing UP mostly)
 
-                        let clamped_dir = if horiz_mag > max_tilt {
+                        // Actually from paper: load acceleration = -1/m * Σ t*s + g
+                        // a = -1/m * Σ t*s + [0,0,-9.81]
+                        // Σ t*s = m * ([0,0,-9.81] - a) = m * [-ax, -ay, -9.81-az]
+
+                        // For cables pointing down (s ≈ [0,0,-1]):
+                        // t * [0,0,-1] gives force term pointing down
+                        // Sum of 3 cables: 3t * [0,0,-1] = [0,0,-3t]
+                        // This equals m*[-ax, -ay, -9.81-az]
+                        // For hover: [0,0,-3t] = [0,0,-m*9.81] → t = m*g/3
+
+                        let cable_force_sum = Vector3::new(
+                            -load_mass * acc_clamped.x,
+                            -load_mass * acc_clamped.y,
+                            -load_mass * (GRAVITY + acc_clamped.z),
+                        );
+
+                        // For vertical cables (s=[0,0,-1]), the Z component gives tension
+                        // Σ t*s_z = cable_force_sum.z
+                        // 3 * t * (-1) = cable_force_sum.z
+                        // t = -cable_force_sum.z / 3
+
+                        let hover_tension = load_mass * GRAVITY / num_quads as f64;
+
+                        // Compute cable direction from desired force
+                        // If cables are mostly vertical, we can tilt slightly for horizontal control
+                        let force_mag = cable_force_sum.norm();
+                        let cable_dir_avg = if force_mag > 0.01 {
+                            (cable_force_sum / force_mag).normalize()
+                        } else {
+                            Vector3::new(0.0, 0.0, -1.0)
+                        };
+
+                        // Limit tilt
+                        let max_tilt = 0.25;
+                        let horiz = Vector3::new(cable_dir_avg.x, cable_dir_avg.y, 0.0);
+                        let horiz_mag = horiz.norm();
+
+                        let cable_dir_clamped = if horiz_mag > max_tilt {
                             let scale = max_tilt / horiz_mag;
-                            let clamped_horiz = horizontal * scale;
-                            let z_component = (1.0 - clamped_horiz.norm_squared()).sqrt();
-                            Vector3::new(clamped_horiz.x, clamped_horiz.y, z_component)
-                        } else if force_dir.norm() > 0.01 {
-                            force_dir.normalize()
+                            let h = horiz * scale;
+                            // Ensure Z is negative (pointing down)
+                            let z_sign = if cable_dir_avg.z < 0.0 { -1.0 } else { 1.0 };
+                            let z = z_sign * (1.0 - h.norm_squared()).sqrt();
+                            Vector3::new(h.x, h.y, z).normalize()
                         } else {
-                            Vector3::new(0.0, 0.0, 1.0)
+                            cable_dir_avg
                         };
+
+                        // Tension: total force magnitude / number of cables
+                        // Adjusted for cable direction alignment
+                        let tension_base = force_mag / num_quads as f64;
 
                         for i in 0..num_quads {
-                            desired_tensions[i] = base_tension;
-                            desired_directions[i] = clamped_dir;
+                            // Add fan-out for each cable based on attachment position
+                            // This creates natural asymmetry in cable directions
+                            let attach = &dynamics.load.params.attachment_points[i];
+
+                            // Stronger fan-out based on desired acceleration direction
+                            let acc_dir = if acc_clamped.norm() > 0.01 {
+                                acc_clamped.normalize()
+                            } else {
+                                Vector3::zeros()
+                            };
+
+                            // Cable tilts opposite to its attachment for acceleration
+                            // Attachment at +X should tilt cable toward -X for +X load movement
+                            let tilt_factor = 0.15; // Stronger tilt
+                            let position_fan = Vector3::new(
+                                -attach.x * 0.1,
+                                -attach.y * 0.1,
+                                0.0
+                            );
+
+                            // Additional tilt based on acceleration direction and attachment
+                            let acc_contribution = -attach.dot(&acc_dir) * acc_dir * tilt_factor;
+
+                            let total_tilt = position_fan + acc_contribution;
+                            let dir = (cable_dir_clamped + total_tilt).normalize();
+
+                            desired_directions[i] = dir;
+
+                            // Vary tension based on which cable supports the movement
+                            // Cables opposing movement direction need more tension
+                            let tension_variation = attach.dot(&acc_dir) * 0.3;
+                            desired_tensions[i] = (tension_base * (1.0 - tension_variation)).clamp(0.1, 10.0);
                         }
                     }
 
-                    // Debug output
-                    if trajectory_history.len() % 100 == 0 && trajectory_history.len() > 0 {
+                    // Debug output - show individual cable states
+                    if trajectory_history.len() % 200 == 0 && trajectory_history.len() > 0 {
                         let error = (target_position - pos).norm();
                         let mode = if mpc_control.is_some() { "MPC" } else { "PID" };
-                        println!("t={:.1}s [{:}] pos=[{:.2},{:.2},{:.2}] err={:.3}m T=[{:.1},{:.1},{:.1}]N",
-                            sim_time, mode, pos.x, pos.y, pos.z, error,
-                            desired_tensions[0], desired_tensions[1], desired_tensions[2]);
+                        let vel_mag = state.load.velocity.norm();
+                        println!("t={:.1}s [{:}] pos=[{:.2},{:.2},{:.2}] err={:.2}m vel={:.2}m/s",
+                            sim_time, mode, pos.x, pos.y, pos.z, error, vel_mag);
+
+                        // Show individual cable states
+                        for i in 0..num_quads {
+                            let c = &state.cables.cables[i];
+                            let q = &state.quadrotors[i].position;
+                            println!("  Cable{}: T={:.2}N dir=[{:.3},{:.3},{:.3}] quad=[{:.2},{:.2},{:.2}]",
+                                i, c.tension, c.direction.x, c.direction.y, c.direction.z,
+                                q.x, q.y, q.z);
+                        }
                     }
                 }
 
@@ -491,17 +663,70 @@ fn main() {
         let load_rot = na::UnitQuaternion::from_euler_angles(roll as f32, yaw as f32, pitch as f32);
         load_viz.set_local_rotation(load_rot);
 
-        // Update quadrotors and draw cables
+        // Check for collisions with obstacles
+        let mut collision = false;
+        for (obs_pos, obs_half) in &obstacles {
+            // Check load position
+            let d = load_pos - obs_pos;
+            if d.x.abs() < obs_half.x + 0.15 &&
+               d.y.abs() < obs_half.y + 0.15 &&
+               d.z.abs() < obs_half.z + 0.15 {
+                collision = true;
+                break;
+            }
+            // Check quadrotor positions
+            for i in 0..num_quads {
+                let qd = state.quadrotors[i].position - obs_pos;
+                if qd.x.abs() < obs_half.x + 0.1 &&
+                   qd.y.abs() < obs_half.y + 0.1 &&
+                   qd.z.abs() < obs_half.z + 0.1 {
+                    collision = true;
+                    break;
+                }
+            }
+        }
+
+        // Update load color based on collision
+        if collision {
+            load_viz.set_color(1.0, 0.0, 0.0); // Red if collision
+        } else {
+            load_viz.set_color(0.2, 0.6, 0.2); // Green if safe
+        }
+
+        // Update quadrotors and draw cables with force visualization
+        let cable_colors = [
+            Point3::new(1.0, 0.3, 0.3),  // Red
+            Point3::new(0.3, 1.0, 0.3),  // Green
+            Point3::new(0.3, 0.3, 1.0),  // Blue
+        ];
         for (i, quad_viz) in quad_vizs.iter_mut().enumerate() {
             let quad_pos = state.quadrotors[i].position;
             quad_viz.set_local_translation(to_viz_translation(&quad_pos));
 
-            // Draw cable
+            // Draw cable with color based on tension (thicker = more tension)
             let attach = dynamics.load.attachment_world(&state.load, i);
+            let cable = &state.cables.cables[i];
+            let tension_normalized = (cable.tension / 5.0).clamp(0.2, 1.0) as f32;
+
+            // Cable line
             window.draw_line(
                 &to_viz(&attach),
                 &to_viz(&quad_pos),
-                &Point3::new(0.9, 0.9, 0.9),
+                &Point3::new(
+                    cable_colors[i].x * tension_normalized,
+                    cable_colors[i].y * tension_normalized,
+                    cable_colors[i].z * tension_normalized,
+                ),
+            );
+
+            // Draw force vector at load attachment point (shows tension direction)
+            let force_scale = 0.1; // Scale for visualization
+            let force_vec = cable.tension * cable.direction * force_scale;
+            let force_end = attach + force_vec;
+            window.draw_line(
+                &to_viz(&attach),
+                &to_viz(&force_end),
+                &Point3::new(1.0, 1.0, 0.0), // Yellow for force vectors
             );
         }
 
