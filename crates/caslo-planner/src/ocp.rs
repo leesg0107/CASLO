@@ -56,7 +56,9 @@ pub struct CableState {
 }
 
 impl OcpState {
-    /// Create a new OCP state
+    /// Create a new OCP state with default values
+    /// Note: Cable direction convention is FROM quad TOWARD load (downward)
+    /// In NED coordinate frame (Z-down), cables pointing DOWN have positive Z component
     pub fn new(num_cables: usize) -> Self {
         Self {
             load_position: Vector3::zeros(),
@@ -65,7 +67,8 @@ impl OcpState {
             load_angular_velocity: Vector3::zeros(),
             cables: vec![
                 CableState {
-                    direction: Vector3::new(0.0, 0.0, -1.0),
+                    // Cable direction points FROM quad TOWARD load (downward in NED = +Z)
+                    direction: Vector3::new(0.0, 0.0, 1.0),
                     angular_velocity: Vector3::zeros(),
                     tension: 5.0,
                 };
@@ -79,11 +82,14 @@ impl OcpState {
         13 + 7 * num_cables
     }
 
-    /// Pack state into a flat vector
+    /// Pack state into a flat vector (ACADOS layout)
+    /// Layout: [p_L(3), v_L(3), q_L(4), omega_L(3), s_all(3*n), r_all(3*n), t_all(n)]
+    /// This matches the state vector in caslo_ocp.py
     pub fn to_vector(&self) -> Vec<f64> {
-        let mut v = Vec::with_capacity(Self::dimension(self.cables.len()));
+        let n = self.cables.len();
+        let mut v = Vec::with_capacity(Self::dimension(n));
 
-        // Load states
+        // Load states (13 elements)
         v.extend(self.load_position.iter());
         v.extend(self.load_velocity.iter());
         v.push(self.load_orientation.w);
@@ -92,17 +98,25 @@ impl OcpState {
         v.push(self.load_orientation.k);
         v.extend(self.load_angular_velocity.iter());
 
-        // Cable states
+        // ALL cable directions (3*n elements)
         for cable in &self.cables {
             v.extend(cable.direction.iter());
+        }
+
+        // ALL cable angular velocities (3*n elements)
+        for cable in &self.cables {
             v.extend(cable.angular_velocity.iter());
+        }
+
+        // ALL cable tensions (n elements)
+        for cable in &self.cables {
             v.push(cable.tension);
         }
 
         v
     }
 
-    /// Unpack state from a flat vector
+    /// Unpack state from a flat vector (ACADOS layout)
     pub fn from_vector(v: &[f64], num_cables: usize) -> Option<Self> {
         if v.len() != Self::dimension(num_cables) {
             return None;
@@ -115,15 +129,23 @@ impl OcpState {
         );
         let load_angular_velocity = Vector3::new(v[10], v[11], v[12]);
 
-        let mut cables = Vec::with_capacity(num_cables);
-        let mut idx = 13;
-        for _ in 0..num_cables {
+        // Parse cable states from ACADOS layout
+        let n = num_cables;
+        let s_start = 13;
+        let r_start = 13 + 3 * n;
+        let t_start = 13 + 6 * n;
+
+        let mut cables = Vec::with_capacity(n);
+        for i in 0..n {
             cables.push(CableState {
-                direction: Vector3::new(v[idx], v[idx + 1], v[idx + 2]),
-                angular_velocity: Vector3::new(v[idx + 3], v[idx + 4], v[idx + 5]),
-                tension: v[idx + 6],
+                direction: Vector3::new(
+                    v[s_start + 3*i], v[s_start + 3*i + 1], v[s_start + 3*i + 2]
+                ),
+                angular_velocity: Vector3::new(
+                    v[r_start + 3*i], v[r_start + 3*i + 1], v[r_start + 3*i + 2]
+                ),
+                tension: v[t_start + i],
             });
-            idx += 7;
         }
 
         Some(Self {
@@ -178,30 +200,44 @@ impl OcpControl {
         4 * num_cables
     }
 
-    /// Pack control into a flat vector
+    /// Pack control into a flat vector (ACADOS layout)
+    /// Layout: [gamma_all(3*n), lambda_all(n)]
+    /// This matches the control vector in caslo_ocp.py
     pub fn to_vector(&self) -> Vec<f64> {
-        let mut v = Vec::with_capacity(Self::dimension(self.cables.len()));
+        let n = self.cables.len();
+        let mut v = Vec::with_capacity(Self::dimension(n));
+
+        // ALL angular jerks (3*n elements)
         for cable in &self.cables {
             v.extend(cable.angular_jerk.iter());
+        }
+
+        // ALL tension accelerations (n elements)
+        for cable in &self.cables {
             v.push(cable.tension_acceleration);
         }
+
         v
     }
 
-    /// Unpack control from a flat vector
+    /// Unpack control from a flat vector (ACADOS layout)
     pub fn from_vector(v: &[f64], num_cables: usize) -> Option<Self> {
         if v.len() != Self::dimension(num_cables) {
             return None;
         }
 
-        let mut cables = Vec::with_capacity(num_cables);
-        let mut idx = 0;
-        for _ in 0..num_cables {
+        let n = num_cables;
+        let gamma_start = 0;
+        let lambda_start = 3 * n;
+
+        let mut cables = Vec::with_capacity(n);
+        for i in 0..n {
             cables.push(CableControl {
-                angular_jerk: Vector3::new(v[idx], v[idx + 1], v[idx + 2]),
-                tension_acceleration: v[idx + 3],
+                angular_jerk: Vector3::new(
+                    v[gamma_start + 3*i], v[gamma_start + 3*i + 1], v[gamma_start + 3*i + 2]
+                ),
+                tension_acceleration: v[lambda_start + i],
             });
-            idx += 4;
         }
 
         Some(Self { cables })

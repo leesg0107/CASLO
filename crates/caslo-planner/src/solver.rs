@@ -229,28 +229,39 @@ impl AcadosSolver {
             .ok_or(SolverError::SolverNotAvailable)?;
 
         let n = self.ocp.n();
+        eprintln!("ACADOS: n={}", n);
 
         // Set initial state constraint
         let x0 = initial_state.to_vector();
+        eprintln!("ACADOS: x0 len={}", x0.len());
+        eprintln!("ACADOS: x0 full = {:?}", &x0);
         capsule.set_initial_state(&x0)
             .map_err(|e| SolverError::SolveFailed(e))?;
+        eprintln!("ACADOS: initial state OK");
 
         // Set reference trajectory for each stage
         for k in 0..n {
             let ref_k = &reference[k.min(reference.len() - 1)];
             let y_ref = reference_to_vector(ref_k, self.ocp.num_quadrotors);
+            if k == 0 {
+                eprintln!("ACADOS: ref[0] len={}", y_ref.len());
+                eprintln!("ACADOS: ref[0] = {:?}", &y_ref);
+            }
             capsule.set_reference(k, &y_ref)
                 .map_err(|e| SolverError::SolveFailed(e))?;
         }
+        eprintln!("ACADOS: stage refs set OK");
 
         // Set terminal reference
         let ref_e = &reference[(n - 1).min(reference.len() - 1)];
         let y_ref_e = reference_to_vector_terminal(ref_e);
+        eprintln!("ACADOS: terminal ref len={}", y_ref_e.len());
         capsule.set_reference(n, &y_ref_e)
             .map_err(|e| SolverError::SolveFailed(e))?;
+        eprintln!("ACADOS: terminal ref set OK, calling solve...");
 
-        // Apply warm-start if available
-        if options.warm_start {
+        // Apply warm-start if available, otherwise initialize with current state
+        if options.warm_start && self.warm_start_state.is_some() {
             if let Some(ref states) = self.warm_start_state {
                 for (k, state) in states.iter().enumerate() {
                     if k <= n {
@@ -265,11 +276,19 @@ impl AcadosSolver {
                     }
                 }
             }
+        } else {
+            // Initialize trajectory with current state (like C test does)
+            let u0 = vec![0.0; acados_ffi::NU];
+            capsule.initialize_trajectory(&x0, &u0)
+                .map_err(|e| SolverError::SolveFailed(e))?;
+            eprintln!("ACADOS: initialized trajectory");
         }
 
         // Solve
+        eprintln!("ACADOS: calling solve...");
         let status = capsule.solve()
             .map_err(|e| SolverError::SolveFailed(e))?;
+        eprintln!("ACADOS: solve returned status={}", status);
 
         // Extract statistics
         self.last_stats = SolveStatistics {
@@ -402,11 +421,12 @@ impl Drop for AcadosSolver {
 #[cfg(feature = "acados")]
 fn pack_system_parameters(params: &SystemParameters) -> Vec<f64> {
     // Pack system parameters into the format expected by ACADOS
-    // NP = 22: load_mass(1) + load_inertia(9) + cable_lengths(3) +
-    //          attachment_points(9) + gravity(1) - but check caslo_ocp.py for exact format
+    // NP = 22: m_L(1) + J_L(9) + l(3) + rho(9) = 22
+    // From caslo_ocp.py:
+    //   p = [m_L, J_L[0..9], l[0..n], rho[0..3*n]]
     let mut p = Vec::with_capacity(acados_ffi::NP);
 
-    // Load mass
+    // Load mass (1)
     p.push(params.load_mass);
 
     // Load inertia (9 elements, row-major)
@@ -417,10 +437,19 @@ fn pack_system_parameters(params: &SystemParameters) -> Vec<f64> {
         p.push(params.cable_lengths.get(i).copied().unwrap_or(1.0));
     }
 
-    // Gravity
-    p.push(params.gravity);
+    // Attachment points rho (3*3 = 9 elements)
+    // Default: regular polygon pattern, radius 0.1m
+    let num_quads = 3;
+    let radius = 0.1;
+    for i in 0..num_quads {
+        let angle = 2.0 * std::f64::consts::PI * (i as f64) / (num_quads as f64);
+        p.push(radius * angle.cos()); // x
+        p.push(radius * angle.sin()); // y
+        p.push(0.0);                   // z
+    }
 
-    // Pad to NP if needed
+    // Ensure exactly NP elements
+    p.truncate(acados_ffi::NP);
     while p.len() < acados_ffi::NP {
         p.push(0.0);
     }
