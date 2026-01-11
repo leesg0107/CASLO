@@ -42,6 +42,7 @@
 #include "caslo_3quad_model/caslo_3quad_model.h"
 
 
+#include "caslo_3quad_constraints/caslo_3quad_constraints.h"
 #include "caslo_3quad_cost/caslo_3quad_cost.h"
 
 
@@ -152,7 +153,7 @@ void caslo_3quad_acados_create_set_plan(ocp_nlp_plan_t* nlp_solver_plan, const i
     *  plan
     ************************************************/
 
-    nlp_solver_plan->nlp_solver = SQP_RTI;
+    nlp_solver_plan->nlp_solver = SQP;
 
     nlp_solver_plan->ocp_qp_solver_plan.qp_solver = PARTIAL_CONDENSING_HPIPM;
     nlp_solver_plan->relaxed_ocp_qp_solver_plan.qp_solver = PARTIAL_CONDENSING_HPIPM;
@@ -176,9 +177,9 @@ void caslo_3quad_acados_create_set_plan(ocp_nlp_plan_t* nlp_solver_plan, const i
     }
     nlp_solver_plan->nlp_constraints[N] = BGH;
 
-    nlp_solver_plan->regularization = NO_REGULARIZE;
+    nlp_solver_plan->regularization = PROJECT;
 
-    nlp_solver_plan->globalization = FIXED_STEP;
+    nlp_solver_plan->globalization = MERIT_BACKTRACKING;
 }
 
 
@@ -243,7 +244,7 @@ static ocp_nlp_dims* caslo_3quad_acados_create_setup_dimensions(caslo_3quad_solv
     nsbx[0] = 0;
     ns[0] = NS0;
     
-    nbxe[0] = 34;
+    nbxe[0] = 55;
     
     ny[0] = NY0;
     nh[0] = NH0;
@@ -342,6 +343,16 @@ void caslo_3quad_acados_create_setup_functions(caslo_3quad_solver_capsule* capsu
     ext_fun_opts.external_workspace = true;
     if (N > 0)
     {
+        // constraints.constr_type == "BGH" and dims.nh > 0
+        capsule->nl_constr_h_fun_jac = (external_function_external_param_casadi *) malloc(sizeof(external_function_external_param_casadi)*(N-1));
+        for (int i = 0; i < N-1; i++) {
+            MAP_CASADI_FNC(nl_constr_h_fun_jac[i], caslo_3quad_constr_h_fun_jac_uxt_zt);
+        }
+        capsule->nl_constr_h_fun = (external_function_external_param_casadi *) malloc(sizeof(external_function_external_param_casadi)*(N-1));
+        for (int i = 0; i < N-1; i++) {
+            MAP_CASADI_FNC(nl_constr_h_fun[i], caslo_3quad_constr_h_fun);
+        }
+    
         // nonlinear least squares function
         MAP_CASADI_FNC(cost_y_0_fun, caslo_3quad_cost_y_0_fun);
         MAP_CASADI_FNC(cost_y_0_fun_jac_ut_xt, caslo_3quad_cost_y_0_fun_jac_ut_xt);
@@ -405,11 +416,11 @@ void caslo_3quad_acados_create_set_default_parameters(caslo_3quad_solver_capsule
     p[10] = 1;
     p[11] = 1;
     p[12] = 1;
-    p[13] = 0.1;
-    p[16] = -0.04999999999999999;
-    p[17] = 0.08660254037844388;
-    p[19] = -0.05000000000000005;
-    p[20] = -0.08660254037844384;
+    p[13] = 0.3;
+    p[16] = -0.14999999999999994;
+    p[17] = 0.2598076211353316;
+    p[19] = -0.15000000000000013;
+    p[20] = -0.2598076211353315;
 
     for (int i = 0; i <= N; i++) {
         caslo_3quad_acados_update_params(capsule, i, p, NP);
@@ -527,18 +538,12 @@ void caslo_3quad_acados_setup_nlp_in(caslo_3quad_solver_capsule* capsule, const 
 
    double* W_0 = calloc(NY0*NY0, sizeof(double));
     // change only the non-zero elements:
-    W_0[0+(NY0) * 0] = 10;
-    W_0[1+(NY0) * 1] = 10;
-    W_0[2+(NY0) * 2] = 20;
-    W_0[3+(NY0) * 3] = 1;
-    W_0[4+(NY0) * 4] = 1;
-    W_0[5+(NY0) * 5] = 2;
-    W_0[6+(NY0) * 6] = 5;
-    W_0[7+(NY0) * 7] = 5;
-    W_0[8+(NY0) * 8] = 5;
-    W_0[9+(NY0) * 9] = 0.5;
-    W_0[10+(NY0) * 10] = 0.5;
-    W_0[11+(NY0) * 11] = 0.5;
+    W_0[0+(NY0) * 0] = 50;
+    W_0[1+(NY0) * 1] = 50;
+    W_0[2+(NY0) * 2] = 100;
+    W_0[3+(NY0) * 3] = 5;
+    W_0[4+(NY0) * 4] = 5;
+    W_0[5+(NY0) * 5] = 10;
     W_0[12+(NY0) * 12] = 0.01;
     W_0[13+(NY0) * 13] = 0.01;
     W_0[14+(NY0) * 14] = 0.01;
@@ -548,9 +553,9 @@ void caslo_3quad_acados_setup_nlp_in(caslo_3quad_solver_capsule* capsule, const 
     W_0[18+(NY0) * 18] = 0.01;
     W_0[19+(NY0) * 19] = 0.01;
     W_0[20+(NY0) * 20] = 0.01;
-    W_0[21+(NY0) * 21] = 0.001;
-    W_0[22+(NY0) * 22] = 0.001;
-    W_0[23+(NY0) * 23] = 0.001;
+    W_0[21+(NY0) * 21] = 0.01;
+    W_0[22+(NY0) * 22] = 0.01;
+    W_0[23+(NY0) * 23] = 0.01;
     ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, 0, "W", W_0);
     free(W_0);
     double* yref = calloc(NY, sizeof(double));
@@ -563,18 +568,12 @@ void caslo_3quad_acados_setup_nlp_in(caslo_3quad_solver_capsule* capsule, const 
     free(yref);
     double* W = calloc(NY*NY, sizeof(double));
     // change only the non-zero elements:
-    W[0+(NY) * 0] = 10;
-    W[1+(NY) * 1] = 10;
-    W[2+(NY) * 2] = 20;
-    W[3+(NY) * 3] = 1;
-    W[4+(NY) * 4] = 1;
-    W[5+(NY) * 5] = 2;
-    W[6+(NY) * 6] = 5;
-    W[7+(NY) * 7] = 5;
-    W[8+(NY) * 8] = 5;
-    W[9+(NY) * 9] = 0.5;
-    W[10+(NY) * 10] = 0.5;
-    W[11+(NY) * 11] = 0.5;
+    W[0+(NY) * 0] = 50;
+    W[1+(NY) * 1] = 50;
+    W[2+(NY) * 2] = 100;
+    W[3+(NY) * 3] = 5;
+    W[4+(NY) * 4] = 5;
+    W[5+(NY) * 5] = 10;
     W[12+(NY) * 12] = 0.01;
     W[13+(NY) * 13] = 0.01;
     W[14+(NY) * 14] = 0.01;
@@ -584,9 +583,9 @@ void caslo_3quad_acados_setup_nlp_in(caslo_3quad_solver_capsule* capsule, const 
     W[18+(NY) * 18] = 0.01;
     W[19+(NY) * 19] = 0.01;
     W[20+(NY) * 20] = 0.01;
-    W[21+(NY) * 21] = 0.001;
-    W[22+(NY) * 22] = 0.001;
-    W[23+(NY) * 23] = 0.001;
+    W[21+(NY) * 21] = 0.01;
+    W[22+(NY) * 22] = 0.01;
+    W[23+(NY) * 23] = 0.01;
 
     for (int i = 1; i < N; i++)
     {
@@ -600,18 +599,12 @@ void caslo_3quad_acados_setup_nlp_in(caslo_3quad_solver_capsule* capsule, const 
 
     double* W_e = calloc(NYN*NYN, sizeof(double));
     // change only the non-zero elements:
-    W_e[0+(NYN) * 0] = 100;
-    W_e[1+(NYN) * 1] = 100;
-    W_e[2+(NYN) * 2] = 200;
-    W_e[3+(NYN) * 3] = 10;
-    W_e[4+(NYN) * 4] = 10;
-    W_e[5+(NYN) * 5] = 20;
-    W_e[6+(NYN) * 6] = 50;
-    W_e[7+(NYN) * 7] = 50;
-    W_e[8+(NYN) * 8] = 50;
-    W_e[9+(NYN) * 9] = 5;
-    W_e[10+(NYN) * 10] = 5;
-    W_e[11+(NYN) * 11] = 5;
+    W_e[0+(NYN) * 0] = 250;
+    W_e[1+(NYN) * 1] = 250;
+    W_e[2+(NYN) * 2] = 500;
+    W_e[3+(NYN) * 3] = 25;
+    W_e[4+(NYN) * 4] = 25;
+    W_e[5+(NYN) * 5] = 50;
     ocp_nlp_cost_model_set(nlp_config, nlp_dims, nlp_in, N, "W", W_e);
     free(W_e);
     ocp_nlp_cost_model_set_external_param_fun(nlp_config, nlp_dims, nlp_in, 0, "nls_y_fun", &capsule->cost_y_0_fun);
@@ -669,6 +662,27 @@ void caslo_3quad_acados_setup_nlp_in(caslo_3quad_solver_capsule* capsule, const 
     idxbx0[31] = 31;
     idxbx0[32] = 32;
     idxbx0[33] = 33;
+    idxbx0[34] = 34;
+    idxbx0[35] = 35;
+    idxbx0[36] = 36;
+    idxbx0[37] = 37;
+    idxbx0[38] = 38;
+    idxbx0[39] = 39;
+    idxbx0[40] = 40;
+    idxbx0[41] = 41;
+    idxbx0[42] = 42;
+    idxbx0[43] = 43;
+    idxbx0[44] = 44;
+    idxbx0[45] = 45;
+    idxbx0[46] = 46;
+    idxbx0[47] = 47;
+    idxbx0[48] = 48;
+    idxbx0[49] = 49;
+    idxbx0[50] = 50;
+    idxbx0[51] = 51;
+    idxbx0[52] = 52;
+    idxbx0[53] = 53;
+    idxbx0[54] = 54;
 
     double* lubx0 = calloc(2*NBX0, sizeof(double));
     double* lbx0 = lubx0;
@@ -682,12 +696,12 @@ void caslo_3quad_acados_setup_nlp_in(caslo_3quad_solver_capsule* capsule, const 
     ubx0[18] = -1;
     lbx0[21] = -1;
     ubx0[21] = -1;
-    lbx0[31] = 5;
-    ubx0[31] = 5;
-    lbx0[32] = 5;
-    ubx0[32] = 5;
-    lbx0[33] = 5;
-    ubx0[33] = 5;
+    lbx0[49] = 5;
+    ubx0[49] = 5;
+    lbx0[50] = 5;
+    ubx0[50] = 5;
+    lbx0[51] = 5;
+    ubx0[51] = 5;
 
     ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, nlp_out, 0, "idxbx", idxbx0);
     ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, nlp_out, 0, "lbx", lbx0);
@@ -695,7 +709,7 @@ void caslo_3quad_acados_setup_nlp_in(caslo_3quad_solver_capsule* capsule, const 
     free(idxbx0);
     free(lubx0);
     // idxbxe_0
-    int* idxbxe_0 = malloc(34 * sizeof(int));
+    int* idxbxe_0 = malloc(55 * sizeof(int));
     idxbxe_0[0] = 0;
     idxbxe_0[1] = 1;
     idxbxe_0[2] = 2;
@@ -730,6 +744,27 @@ void caslo_3quad_acados_setup_nlp_in(caslo_3quad_solver_capsule* capsule, const 
     idxbxe_0[31] = 31;
     idxbxe_0[32] = 32;
     idxbxe_0[33] = 33;
+    idxbxe_0[34] = 34;
+    idxbxe_0[35] = 35;
+    idxbxe_0[36] = 36;
+    idxbxe_0[37] = 37;
+    idxbxe_0[38] = 38;
+    idxbxe_0[39] = 39;
+    idxbxe_0[40] = 40;
+    idxbxe_0[41] = 41;
+    idxbxe_0[42] = 42;
+    idxbxe_0[43] = 43;
+    idxbxe_0[44] = 44;
+    idxbxe_0[45] = 45;
+    idxbxe_0[46] = 46;
+    idxbxe_0[47] = 47;
+    idxbxe_0[48] = 48;
+    idxbxe_0[49] = 49;
+    idxbxe_0[50] = 50;
+    idxbxe_0[51] = 51;
+    idxbxe_0[52] = 52;
+    idxbxe_0[53] = 53;
+    idxbxe_0[54] = 54;
     ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, nlp_out, 0, "idxbxe", idxbxe_0);
     free(idxbxe_0);
 
@@ -762,24 +797,24 @@ void caslo_3quad_acados_setup_nlp_in(caslo_3quad_solver_capsule* capsule, const 
     double* lubu = calloc(2*NBU, sizeof(double));
     double* lbu = lubu;
     double* ubu = lubu + NBU;
-    lbu[0] = -100;
-    ubu[0] = 100;
-    lbu[1] = -100;
-    ubu[1] = 100;
-    lbu[2] = -100;
-    ubu[2] = 100;
-    lbu[3] = -100;
-    ubu[3] = 100;
-    lbu[4] = -100;
-    ubu[4] = 100;
-    lbu[5] = -100;
-    ubu[5] = 100;
-    lbu[6] = -100;
-    ubu[6] = 100;
-    lbu[7] = -100;
-    ubu[7] = 100;
-    lbu[8] = -100;
-    ubu[8] = 100;
+    lbu[0] = -200;
+    ubu[0] = 200;
+    lbu[1] = -200;
+    ubu[1] = 200;
+    lbu[2] = -200;
+    ubu[2] = 200;
+    lbu[3] = -200;
+    ubu[3] = 200;
+    lbu[4] = -200;
+    ubu[4] = 200;
+    lbu[5] = -200;
+    ubu[5] = 200;
+    lbu[6] = -200;
+    ubu[6] = 200;
+    lbu[7] = -200;
+    ubu[7] = 200;
+    lbu[8] = -200;
+    ubu[8] = 200;
     lbu[9] = -500;
     ubu[9] = 500;
     lbu[10] = -500;
@@ -805,18 +840,108 @@ void caslo_3quad_acados_setup_nlp_in(caslo_3quad_solver_capsule* capsule, const 
 
     // x
     int* idxbx = malloc(NBX * sizeof(int));
-    idxbx[0] = 31;
-    idxbx[1] = 32;
-    idxbx[2] = 33;
+    idxbx[0] = 22;
+    idxbx[1] = 23;
+    idxbx[2] = 24;
+    idxbx[3] = 25;
+    idxbx[4] = 26;
+    idxbx[5] = 27;
+    idxbx[6] = 28;
+    idxbx[7] = 29;
+    idxbx[8] = 30;
+    idxbx[9] = 31;
+    idxbx[10] = 32;
+    idxbx[11] = 33;
+    idxbx[12] = 34;
+    idxbx[13] = 35;
+    idxbx[14] = 36;
+    idxbx[15] = 37;
+    idxbx[16] = 38;
+    idxbx[17] = 39;
+    idxbx[18] = 40;
+    idxbx[19] = 41;
+    idxbx[20] = 42;
+    idxbx[21] = 43;
+    idxbx[22] = 44;
+    idxbx[23] = 45;
+    idxbx[24] = 46;
+    idxbx[25] = 47;
+    idxbx[26] = 48;
+    idxbx[27] = 49;
+    idxbx[28] = 50;
+    idxbx[29] = 51;
+    idxbx[30] = 52;
+    idxbx[31] = 53;
+    idxbx[32] = 54;
     double* lubx = calloc(2*NBX, sizeof(double));
     double* lbx = lubx;
     double* ubx = lubx + NBX;
-    lbx[0] = 0.5;
-    ubx[0] = 50;
-    lbx[1] = 0.5;
-    ubx[1] = 50;
-    lbx[2] = 0.5;
-    ubx[2] = 50;
+    lbx[0] = -20;
+    ubx[0] = 20;
+    lbx[1] = -20;
+    ubx[1] = 20;
+    lbx[2] = -20;
+    ubx[2] = 20;
+    lbx[3] = -20;
+    ubx[3] = 20;
+    lbx[4] = -20;
+    ubx[4] = 20;
+    lbx[5] = -20;
+    ubx[5] = 20;
+    lbx[6] = -20;
+    ubx[6] = 20;
+    lbx[7] = -20;
+    ubx[7] = 20;
+    lbx[8] = -20;
+    ubx[8] = 20;
+    lbx[9] = -100;
+    ubx[9] = 100;
+    lbx[10] = -100;
+    ubx[10] = 100;
+    lbx[11] = -100;
+    ubx[11] = 100;
+    lbx[12] = -100;
+    ubx[12] = 100;
+    lbx[13] = -100;
+    ubx[13] = 100;
+    lbx[14] = -100;
+    ubx[14] = 100;
+    lbx[15] = -100;
+    ubx[15] = 100;
+    lbx[16] = -100;
+    ubx[16] = 100;
+    lbx[17] = -100;
+    ubx[17] = 100;
+    lbx[18] = -500;
+    ubx[18] = 500;
+    lbx[19] = -500;
+    ubx[19] = 500;
+    lbx[20] = -500;
+    ubx[20] = 500;
+    lbx[21] = -500;
+    ubx[21] = 500;
+    lbx[22] = -500;
+    ubx[22] = 500;
+    lbx[23] = -500;
+    ubx[23] = 500;
+    lbx[24] = -500;
+    ubx[24] = 500;
+    lbx[25] = -500;
+    ubx[25] = 500;
+    lbx[26] = -500;
+    ubx[26] = 500;
+    lbx[27] = 0.5;
+    ubx[27] = 50;
+    lbx[28] = 0.5;
+    ubx[28] = 50;
+    lbx[29] = 0.5;
+    ubx[29] = 50;
+    lbx[30] = -200;
+    ubx[30] = 200;
+    lbx[31] = -200;
+    ubx[31] = 200;
+    lbx[32] = -200;
+    ubx[32] = 200;
 
     for (int i = 1; i < N; i++)
     {
@@ -828,6 +953,27 @@ void caslo_3quad_acados_setup_nlp_in(caslo_3quad_solver_capsule* capsule, const 
     free(lubx);
 
 
+    // set up nonlinear constraints for stage 1 to N-1
+    double* luh = calloc(2*NH, sizeof(double));
+    double* lh = luh;
+    double* uh = luh + NH;
+    lh[0] = -1000000000;
+    lh[1] = -1000000000;
+    lh[2] = -1000000000;
+
+    for (int i = 1; i < N; i++)
+    {
+        ocp_nlp_constraints_model_set_external_param_fun(nlp_config, nlp_dims, nlp_in, i, "nl_constr_h_fun_jac",
+                                      &capsule->nl_constr_h_fun_jac[i-1]);
+        ocp_nlp_constraints_model_set_external_param_fun(nlp_config, nlp_dims, nlp_in, i, "nl_constr_h_fun",
+                                      &capsule->nl_constr_h_fun[i-1]);
+        
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, nlp_out, i, "lh", lh);
+        ocp_nlp_constraints_model_set(nlp_config, nlp_dims, nlp_in, nlp_out, i, "uh", uh);
+        
+        
+    }
+    free(luh);
 
 
 
@@ -877,12 +1023,22 @@ static void caslo_3quad_acados_create_set_opts(caslo_3quad_solver_capsule* capsu
 
     int fixed_hess = 0;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "fixed_hess", &fixed_hess);
+    double globalization_alpha_min = 0.01;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "globalization_alpha_min", &globalization_alpha_min);
 
-    double globalization_fixed_step_length = 1;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "globalization_fixed_step_length", &globalization_fixed_step_length);
+    double globalization_alpha_reduction = 0.5;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "globalization_alpha_reduction", &globalization_alpha_reduction);
 
 
 
+    int globalization_line_search_use_sufficient_descent = 0;
+    ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "globalization_line_search_use_sufficient_descent", &globalization_line_search_use_sufficient_descent);
+
+    int globalization_use_SOC = 0;
+    ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "globalization_use_SOC", &globalization_use_SOC);
+
+    double globalization_eps_sufficient_descent = 0.0001;
+    ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "globalization_eps_sufficient_descent", &globalization_eps_sufficient_descent);
 
     int with_solution_sens_wrt_params = false;
     ocp_nlp_solver_opts_set(nlp_config, capsule->nlp_opts, "with_solution_sens_wrt_params", &with_solution_sens_wrt_params);
@@ -926,19 +1082,37 @@ static void caslo_3quad_acados_create_set_opts(caslo_3quad_solver_capsule* capsu
     for (int i = 0; i < N; i++)
         ocp_nlp_solver_opts_set_at_stage(nlp_config, nlp_opts, i, "dynamics_jac_reuse", &tmp_bool);
 
-    double levenberg_marquardt = 0;
+    double levenberg_marquardt = 0.01;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "levenberg_marquardt", &levenberg_marquardt);
 
     /* options QP solver */
     int qp_solver_cond_N;const int qp_solver_cond_N_ori = 20;
     qp_solver_cond_N = N < qp_solver_cond_N_ori ? N : qp_solver_cond_N_ori; // use the minimum value here
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qp_cond_N", &qp_solver_cond_N);
+    double reg_epsilon = 0.001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "reg_epsilon", &reg_epsilon);
+    double reg_max_cond_block = 10000000;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "reg_max_cond_block", &reg_max_cond_block);
+
+    double reg_min_epsilon = 0.00000001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "reg_min_epsilon", &reg_min_epsilon);
+
+    bool reg_adaptive_eps = false;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "reg_adaptive_eps", &reg_adaptive_eps);
 
     int nlp_solver_ext_qp_res = 0;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "ext_qp_res", &nlp_solver_ext_qp_res);
 
     bool store_iterates = false;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "store_iterates", &store_iterates);
+    int log_primal_step_norm = false;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "log_primal_step_norm", &log_primal_step_norm);
+
+    int log_dual_step_norm = false;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "log_dual_step_norm", &log_dual_step_norm);
+
+    double nlp_solver_tol_min_step_norm = 0;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_min_step_norm", &nlp_solver_tol_min_step_norm);
     // set HPIPM mode: should be done before setting other QP solver options
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qp_hpipm_mode", "BALANCE");
 
@@ -950,17 +1124,75 @@ static void caslo_3quad_acados_create_set_opts(caslo_3quad_solver_capsule* capsu
 
 
 
-    int as_rti_iter = 1;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "as_rti_iter", &as_rti_iter);
+    // set SQP specific options
+    double nlp_solver_tol_stat = 0.001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_stat", &nlp_solver_tol_stat);
 
-    int as_rti_level = 4;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "as_rti_level", &as_rti_level);
+    double nlp_solver_tol_eq = 0.001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_eq", &nlp_solver_tol_eq);
 
-    int rti_log_residuals = 0;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "rti_log_residuals", &rti_log_residuals);
+    double nlp_solver_tol_ineq = 0.001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_ineq", &nlp_solver_tol_ineq);
 
-    int rti_log_only_available_residuals = 0;
-    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "rti_log_only_available_residuals", &rti_log_only_available_residuals);
+    double nlp_solver_tol_comp = 0.001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "tol_comp", &nlp_solver_tol_comp);
+
+    int nlp_solver_max_iter = 5;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "max_iter", &nlp_solver_max_iter);
+
+    // set options for adaptive Levenberg-Marquardt Update
+    bool with_adaptive_levenberg_marquardt = false;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "with_adaptive_levenberg_marquardt", &with_adaptive_levenberg_marquardt);
+
+    double adaptive_levenberg_marquardt_lam = 5;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "adaptive_levenberg_marquardt_lam", &adaptive_levenberg_marquardt_lam);
+
+    double adaptive_levenberg_marquardt_mu_min = 0.0000000000000001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "adaptive_levenberg_marquardt_mu_min", &adaptive_levenberg_marquardt_mu_min);
+
+    double adaptive_levenberg_marquardt_mu0 = 0.001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "adaptive_levenberg_marquardt_mu0", &adaptive_levenberg_marquardt_mu0);
+
+    double adaptive_levenberg_marquardt_obj_scalar = 2;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "adaptive_levenberg_marquardt_obj_scalar", &adaptive_levenberg_marquardt_obj_scalar);
+
+    bool eval_residual_at_max_iter = false;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "eval_residual_at_max_iter", &eval_residual_at_max_iter);
+
+    // QP scaling
+    double qpscaling_ub_max_abs_eig = 100000;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qpscaling_ub_max_abs_eig", &qpscaling_ub_max_abs_eig);
+
+    double qpscaling_lb_norm_inf_grad_obj = 0.0001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qpscaling_lb_norm_inf_grad_obj", &qpscaling_lb_norm_inf_grad_obj);
+
+    qpscaling_scale_objective_type qpscaling_scale_objective = NO_OBJECTIVE_SCALING;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qpscaling_scale_objective", &qpscaling_scale_objective);
+
+    ocp_nlp_qpscaling_constraint_type qpscaling_scale_constraints = NO_CONSTRAINT_SCALING;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qpscaling_scale_constraints", &qpscaling_scale_constraints);
+
+    // NLP QP tol strategy
+    ocp_nlp_qp_tol_strategy_t nlp_qp_tol_strategy = FIXED_QP_TOL;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "nlp_qp_tol_strategy", &nlp_qp_tol_strategy);
+
+    double nlp_qp_tol_reduction_factor = 0.1;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "nlp_qp_tol_reduction_factor", &nlp_qp_tol_reduction_factor);
+
+    double nlp_qp_tol_safety_factor = 0.1;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "nlp_qp_tol_safety_factor", &nlp_qp_tol_safety_factor);
+
+    double nlp_qp_tol_min_stat = 0.000000001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "nlp_qp_tol_min_stat", &nlp_qp_tol_min_stat);
+
+    double nlp_qp_tol_min_eq = 0.0000000001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "nlp_qp_tol_min_eq", &nlp_qp_tol_min_eq);
+
+    double nlp_qp_tol_min_ineq = 0.0000000001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "nlp_qp_tol_min_ineq", &nlp_qp_tol_min_ineq);
+
+    double nlp_qp_tol_min_comp = 0.00000000001;
+    ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "nlp_qp_tol_min_comp", &nlp_qp_tol_min_comp);
 
     bool with_anderson_acceleration = false;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "with_anderson_acceleration", &with_anderson_acceleration);
@@ -968,7 +1200,7 @@ static void caslo_3quad_acados_create_set_opts(caslo_3quad_solver_capsule* capsu
     double anderson_activation_threshold = 10;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "anderson_activation_threshold", &anderson_activation_threshold);
 
-    int qp_solver_iter_max = 50;
+    int qp_solver_iter_max = 30;
     ocp_nlp_solver_opts_set(nlp_config, nlp_opts, "qp_iter_max", &qp_solver_iter_max);
 
 
@@ -1006,9 +1238,9 @@ void caslo_3quad_acados_set_nlp_out(caslo_3quad_solver_capsule* capsule)
     x0[15] = -1;
     x0[18] = -1;
     x0[21] = -1;
-    x0[31] = 5;
-    x0[32] = 5;
-    x0[33] = 5;
+    x0[49] = 5;
+    x0[50] = 5;
+    x0[51] = 5;
 
 
     double* u0 = xu0 + NX;
@@ -1256,6 +1488,13 @@ int caslo_3quad_acados_free(caslo_3quad_solver_capsule* capsule)
     external_function_external_param_casadi_free(&capsule->cost_y_e_fun_jac_ut_xt);
 
     // constraints
+    for (int i = 0; i < N-1; i++)
+    {
+        external_function_external_param_casadi_free(&capsule->nl_constr_h_fun_jac[i]);
+        external_function_external_param_casadi_free(&capsule->nl_constr_h_fun[i]);
+    }
+    free(capsule->nl_constr_h_fun_jac);
+    free(capsule->nl_constr_h_fun);
 
 
 
@@ -1277,19 +1516,29 @@ void caslo_3quad_acados_print_stats(caslo_3quad_solver_capsule* capsule)
         printf("stat_n_max = %d is too small, increase it in the template!\n", stat_n_max);
         exit(1);
     }
-    double stat[816];
+    double stat[96];
     ocp_nlp_get(capsule->nlp_solver, "statistics", stat);
 
     int nrow = nlp_iter+1 < stat_m ? nlp_iter+1 : stat_m;
 
 
-    printf("iter\tqp_stat\tqp_iter\n");
+    printf("iter\tres_stat\tres_eq\t\tres_ineq\tres_comp\tqp_stat\tqp_iter\talpha");
+    if (stat_n > 8)
+        printf("\t\tqp_res_stat\tqp_res_eq\tqp_res_ineq\tqp_res_comp");
+    printf("\n");
     for (int i = 0; i < nrow; i++)
     {
         for (int j = 0; j < stat_n + 1; j++)
         {
-            tmp_int = (int) stat[i + j * nrow];
-            printf("%d\t", tmp_int);
+            if (j == 0 || j == 5 || j == 6)
+            {
+                tmp_int = (int) stat[i + j * nrow];
+                printf("%d\t", tmp_int);
+            }
+            else
+            {
+                printf("%e\t", stat[i + j * nrow]);
+            }
         }
         printf("\n");
     }

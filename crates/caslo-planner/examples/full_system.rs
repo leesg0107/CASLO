@@ -237,30 +237,30 @@ fn demonstrate_conversions(state: &SystemState, cables: &MultiCableState, dynami
     // Create tracking reference manually
     println!("\n=== Tracking Reference ===");
     let num_cables = 3;
-    let tracking_ref = TrackingReference {
-        load_position: start,
-        load_velocity: Vector3::zeros(),
-        load_acceleration: Vector3::zeros(),
-        load_orientation: UnitQuaternion::identity(),
-        load_angular_velocity: Vector3::zeros(),
-        cable_directions: vec![
+    let tracking_ref = TrackingReference::new(
+        start,
+        Vector3::zeros(),
+        Vector3::zeros(),
+        UnitQuaternion::identity(),
+        Vector3::zeros(),
+        vec![
             Vector3::new(0.0, 0.0, -1.0),
             Vector3::new(0.0, 0.0, -1.0),
             Vector3::new(0.0, 0.0, -1.0),
         ],
-        cable_angular_velocities: vec![
+        vec![
             Vector3::zeros(),
             Vector3::zeros(),
             Vector3::zeros(),
         ],
-        cable_tensions: vec![10.0, 10.0, 10.0],
-        cable_angular_jerks: vec![
+        vec![10.0, 10.0, 10.0],
+        vec![
             Vector3::zeros(),
             Vector3::zeros(),
             Vector3::zeros(),
         ],
-        cable_tension_accelerations: vec![0.0, 0.0, 0.0],
-    };
+        vec![0.0, 0.0, 0.0],
+    );
 
     // Extract per-quadrotor references
     for i in 0..num_cables {

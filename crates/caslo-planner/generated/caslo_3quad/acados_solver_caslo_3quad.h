@@ -36,13 +36,13 @@
 #include "acados_c/ocp_nlp_interface.h"
 #include "acados_c/external_function_interface.h"
 
-#define CASLO_3QUAD_NX     34
+#define CASLO_3QUAD_NX     55
 #define CASLO_3QUAD_NZ     0
 #define CASLO_3QUAD_NU     12
 #define CASLO_3QUAD_NP     22
 #define CASLO_3QUAD_NP_GLOBAL     0
-#define CASLO_3QUAD_NBX    3
-#define CASLO_3QUAD_NBX0   34
+#define CASLO_3QUAD_NBX    33
+#define CASLO_3QUAD_NBX0   55
 #define CASLO_3QUAD_NBU    12
 #define CASLO_3QUAD_NSBX   0
 #define CASLO_3QUAD_NSBU   0
@@ -65,7 +65,7 @@
 #define CASLO_3QUAD_NY     24
 #define CASLO_3QUAD_NYN    12
 #define CASLO_3QUAD_N      20
-#define CASLO_3QUAD_NH     0
+#define CASLO_3QUAD_NH     3
 #define CASLO_3QUAD_NHN    0
 #define CASLO_3QUAD_NH0    0
 #define CASLO_3QUAD_NPHI0  0
@@ -123,6 +123,10 @@ typedef struct caslo_3quad_solver_capsule
 
 
     // constraints
+    external_function_external_param_casadi *nl_constr_h_fun_jac;
+    external_function_external_param_casadi *nl_constr_h_fun;
+
+
 
 
 

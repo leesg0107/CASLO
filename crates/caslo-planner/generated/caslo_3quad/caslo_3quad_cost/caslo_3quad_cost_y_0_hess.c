@@ -53,22 +53,24 @@ extern "C" {
   #endif
 #endif
 
-static const casadi_int casadi_s0[3] = {34, 1, 1};
+static const casadi_int casadi_s0[3] = {55, 1, 1};
 static const casadi_int casadi_s1[3] = {12, 1, 1};
 static const casadi_int casadi_s2[3] = {0, 1, 1};
 static const casadi_int casadi_s3[3] = {24, 1, 1};
 static const casadi_int casadi_s4[3] = {0, 0, 1};
 static const casadi_int casadi_s5[3] = {22, 1, 1};
-static const casadi_int casadi_s6[49] = 
-  {46, 46, 0, 0, 0, 0, 0, 0,
+static const casadi_int casadi_s6[70] = 
+  {67, 67, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
-  0};
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0};
 
-/* caslo_3quad_cost_y_0_hess:(i0[34],i1[12],i2[0],i3[24],i4[],i5[22])->(o0[46x46,0nz]) */
+/* caslo_3quad_cost_y_0_hess:(i0[55],i1[12],i2[0],i3[24],i4[],i5[22])->(o0[67x67,0nz]) */
 static int casadi_f0(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem) {
   return 0;
 }

@@ -280,11 +280,11 @@ impl ControlBounds {
         let mut upper = Vec::with_capacity(4 * n);
 
         for _ in 0..n {
-            // Angular jerk bounds (3 components)
-            lower.extend([-config.max_angular_jerk; 3]);
-            upper.extend([config.max_angular_jerk; 3]);
+            // Angular snap bounds (3 components) - γᵢ = r⃛ᵢ (4th derivative)
+            lower.extend([-config.max_angular_snap; 3]);
+            upper.extend([config.max_angular_snap; 3]);
 
-            // Tension acceleration bounds
+            // Tension acceleration bounds - λᵢ = ẗᵢ
             lower.push(-config.max_tension_acceleration);
             upper.push(config.max_tension_acceleration);
         }
@@ -464,7 +464,7 @@ mod tests {
     #[test]
     fn test_control_bounds() {
         let config = ConstraintConfig {
-            max_angular_jerk: 100.0,
+            max_angular_snap: 1000.0,  // 4th derivative bound
             max_tension_acceleration: 500.0,
             ..ConstraintConfig::default()
         };
@@ -474,11 +474,11 @@ mod tests {
         assert_eq!(bounds.lower.len(), 12); // 4 * 3 cables
         assert_eq!(bounds.upper.len(), 12);
 
-        // Check angular jerk bounds
-        assert_eq!(bounds.lower[0], -100.0);
-        assert_eq!(bounds.upper[0], 100.0);
+        // Check angular snap bounds (γᵢ = r⃛ᵢ) - 4th derivative
+        assert_eq!(bounds.lower[0], -1000.0);
+        assert_eq!(bounds.upper[0], 1000.0);
 
-        // Check tension acceleration bounds
+        // Check tension acceleration bounds (λᵢ = ẗᵢ)
         assert_eq!(bounds.lower[3], -500.0);
         assert_eq!(bounds.upper[3], 500.0);
     }

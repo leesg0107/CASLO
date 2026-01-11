@@ -33,6 +33,7 @@ pub mod constraints;
 pub mod integration;
 pub mod controller;
 pub mod solver;
+pub mod scenarios;
 
 // ACADOS FFI bindings (only when feature is enabled)
 #[cfg(feature = "acados")]

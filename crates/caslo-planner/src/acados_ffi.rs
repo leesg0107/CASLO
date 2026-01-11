@@ -9,15 +9,17 @@
 
 use std::os::raw::{c_double, c_int, c_void};
 
-/// ACADOS dimension constants from generated code
-pub const NX: usize = 34;  // State dimension: 13 + 7*3
+/// ACADOS dimension constants from generated code (acados_solver_caslo_3quad.h)
+/// 3rd-order cable dynamics (paper Eq. 1): 14 DOF per cable (s:3, r:3, ṙ:3, r̈:3, t:1, ṫ:1)
+/// State: load(13) + cable(14)*3 = 55
+pub const NX: usize = 55;  // State dimension: 13 + 14*3
 pub const NZ: usize = 0;   // Algebraic dimension
-pub const NU: usize = 12;  // Control dimension: 4*3
+pub const NU: usize = 12;  // Control dimension: 4*3 (γ:3 + λ:1 per cable) where γ = r⃛ (snap)
 pub const NP: usize = 22;  // Parameter dimension
 pub const N: usize = 20;   // Horizon length
 pub const NY: usize = 24;  // Cost output dimension (state + control selection)
 pub const NYN: usize = 12; // Terminal cost output dimension
-pub const NBX0: usize = 34; // Initial state constraints
+pub const NBX0: usize = 55; // Initial state constraints (full state)
 
 // Opaque types from ACADOS
 #[repr(C)]

@@ -190,11 +190,11 @@ int caslo_3quad_acados_sim_create(caslo_3quad_sim_solver_capsule * capsule)
     p[10] = 1;
     p[11] = 1;
     p[12] = 1;
-    p[13] = 0.1;
-    p[16] = -0.04999999999999999;
-    p[17] = 0.08660254037844388;
-    p[19] = -0.05000000000000005;
-    p[20] = -0.08660254037844384;
+    p[13] = 0.3;
+    p[16] = -0.14999999999999994;
+    p[17] = 0.2598076211353316;
+    p[19] = -0.15000000000000013;
+    p[20] = -0.2598076211353315;
 
     caslo_3quad_acados_sim_update_params(capsule, p, np);
     free(p);
@@ -202,8 +202,8 @@ int caslo_3quad_acados_sim_create(caslo_3quad_sim_solver_capsule * capsule)
 
     /* initialize input */
     // x
-    double x0[34];
-    for (int ii = 0; ii < 34; ii++)
+    double x0[55];
+    for (int ii = 0; ii < 55; ii++)
         x0[ii] = 0.0;
 
     sim_in_set(caslo_3quad_sim_config, caslo_3quad_sim_dims,
@@ -219,11 +219,11 @@ int caslo_3quad_acados_sim_create(caslo_3quad_sim_solver_capsule * capsule)
                caslo_3quad_sim_in, "u", u0);
 
     // S_forw
-    double S_forw[1564];
-    for (int ii = 0; ii < 1564; ii++)
+    double S_forw[3685];
+    for (int ii = 0; ii < 3685; ii++)
         S_forw[ii] = 0.0;
-    for (int ii = 0; ii < 34; ii++)
-        S_forw[ii + ii * 34 ] = 1.0;
+    for (int ii = 0; ii < 55; ii++)
+        S_forw[ii + ii * 55 ] = 1.0;
 
 
     sim_in_set(caslo_3quad_sim_config, caslo_3quad_sim_dims,

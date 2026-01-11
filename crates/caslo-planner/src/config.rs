@@ -93,10 +93,10 @@ pub struct CostWeights {
     /// Angular velocity tracking weight
     pub w_angular_velocity: Vector3<f64>,
 
-    // Control smoothness weights
-    /// Cable angular jerk weight (γ)
-    pub w_cable_angular_jerk: f64,
-    /// Cable tension acceleration weight (λ)
+    // Control smoothness weights (from Eq. 3 with 3rd-order cable model)
+    /// Cable angular snap weight (γᵢ = r⃛ᵢ) - 4th derivative control
+    pub w_cable_angular_snap: f64,
+    /// Cable tension acceleration weight (λᵢ = ẗᵢ)
     pub w_tension_acceleration: f64,
 
     // Terminal cost scaling
@@ -114,9 +114,12 @@ impl Default for CostWeights {
             w_orientation: Vector3::new(5.0, 5.0, 5.0),
             // Angular velocity
             w_angular_velocity: Vector3::new(0.5, 0.5, 0.5),
-            // Smoothness (small weights to not dominate tracking)
-            w_cable_angular_jerk: 0.01,
-            w_tension_acceleration: 0.001,
+            // Control regularization weights
+            // CRITICAL: These must be high enough to keep condition number < 10,000
+            // κ(W) = max_weight / min_weight = 100 / 0.01 = 10,000 (acceptable)
+            // Old values (0.001, 0.0001) caused κ = 1,000,000 -> MINSTEP errors
+            w_cable_angular_snap: 0.01,      // Increased 10x from 0.001
+            w_tension_acceleration: 0.01,    // Increased 100x from 0.0001
             // Terminal cost (typically 10x stage cost)
             terminal_scale: 10.0,
         }
@@ -142,10 +145,10 @@ pub struct ConstraintConfig {
     /// Minimum distance between quadrotors [m]
     pub inter_quad_distance_min: f64,
 
-    // Control input bounds
-    /// Maximum cable angular jerk [rad/s³]
-    pub max_angular_jerk: f64,
-    /// Maximum tension acceleration [N/s²]
+    // Control input bounds (from Eq. 3 with 3rd-order cable model)
+    /// Maximum cable angular snap [rad/s⁴] γᵢ = r⃛ᵢ - 4th derivative
+    pub max_angular_snap: f64,
+    /// Maximum tension acceleration [N/s²] λᵢ = ẗᵢ
     pub max_tension_acceleration: f64,
 }
 
@@ -158,11 +161,13 @@ impl Default for ConstraintConfig {
             // Cable must be taut
             tension_min: 0.5,      // Small positive value
             tension_max: 50.0,     // Reasonable upper bound
-            // Safe distance between quadrotors
-            inter_quad_distance_min: 0.8,
-            // Control bounds (tuned for smooth trajectories)
-            max_angular_jerk: 100.0,
-            max_tension_acceleration: 500.0,
+            // Safe distance between quadrotors (reduced for aggressive maneuvers)
+            inter_quad_distance_min: 0.2,
+            // Control bounds (tuned for 3rd-order cable model with snap control)
+            // Reduced to prevent state-dependent infeasibility:
+            // If snap integrates to jerk, snap * dt must stay within jerk bounds
+            max_angular_snap: 200.0,    // Reduced from 1000 for consistency
+            max_tension_acceleration: 500.0,  // Reduced from 1000
         }
     }
 }

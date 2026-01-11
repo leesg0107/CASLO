@@ -2,8 +2,11 @@
 
 Cable-Suspended Load Control System implementation "Agile and cooperative aerial manipulation of a cable-suspended load"
 
-### How to run 
+First, you need to clone 'ACADOS' for MPC 
 
-ACADOS_SOURCE_DIR=/Users/leesg17/Github/acados
-DYLD_LIBRARY_PATH=/Users/leesg17/Github/acados/lib
-cargo run --example visualize_sim -p caslo-planner --features acados
+I implemented essential parts based on paper and supplementary material but didn't work like the paper showed. Because I didn't figure out detailed parameters and setting for complete architecture. 
+
+
+### How to run
+
+ACADOS_SOURCE_DIR=/Users/leesg17/Github/acadosㅕㄴ해게 .

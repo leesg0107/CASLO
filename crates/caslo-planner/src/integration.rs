@@ -11,6 +11,9 @@ use crate::ocp::{OcpState, CableState, ReferencePoint};
 use crate::trajectory::TrackingReference;
 
 /// Convert caslo-core LoadState and MultiCableState to planner OcpState
+///
+/// Note: caslo-core uses 2nd-order cable model, but planner uses 3rd-order.
+/// The angular_jerk field is set to zero during conversion.
 pub fn core_to_ocp(load: &LoadState, cables: &MultiCableState) -> OcpState {
     OcpState {
         load_position: load.position,
@@ -23,7 +26,10 @@ pub fn core_to_ocp(load: &LoadState, cables: &MultiCableState) -> OcpState {
             .map(|cable| CableState {
                 direction: cable.direction,
                 angular_velocity: cable.angular_velocity,
+                angular_acceleration: cable.angular_acceleration,
+                angular_jerk: Vector3::zeros(),  // caslo-core uses 2nd-order model
                 tension: cable.tension,
+                tension_rate: cable.tension_rate,
             })
             .collect(),
     }
@@ -46,9 +52,9 @@ pub fn ocp_to_core(ocp: &OcpState) -> (LoadState, MultiCableState) {
         .map(|cable| CoreCableState {
             direction: cable.direction,
             angular_velocity: cable.angular_velocity,
-            angular_acceleration: Vector3::zeros(),
+            angular_acceleration: cable.angular_acceleration,
             tension: cable.tension,
-            tension_rate: 0.0,
+            tension_rate: cable.tension_rate,
         })
         .collect();
 
@@ -59,6 +65,7 @@ pub fn ocp_to_core(ocp: &OcpState) -> (LoadState, MultiCableState) {
 ///
 /// Creates an initial OcpState from pose estimation result.
 /// Velocities are set to zero (stationary initial condition).
+/// Note: caslo-core uses 2nd-order model, angular_jerk is set to zero.
 pub fn init_result_to_ocp(
     init: &InitializationResult,
     cable_states: &[CoreCableState],
@@ -73,7 +80,10 @@ pub fn init_result_to_ocp(
             .map(|cable| CableState {
                 direction: cable.direction,
                 angular_velocity: cable.angular_velocity,
+                angular_acceleration: cable.angular_acceleration,
+                angular_jerk: Vector3::zeros(),  // caslo-core uses 2nd-order model
                 tension: cable.tension,
+                tension_rate: cable.tension_rate,
             })
             .collect(),
     }

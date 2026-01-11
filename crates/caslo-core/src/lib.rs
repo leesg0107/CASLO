@@ -10,12 +10,14 @@
 //!
 //! - [`math`]: Mathematical utilities (quaternions, SO(3), integrators)
 //! - [`dynamics`]: Dynamic models (load, cable, quadrotor, full system)
+//! - [`kinematics`]: Kinematic constraints (Eq. 5, S1) for quadrotor trajectory generation
 //! - [`control`]: Controllers (INDI, trajectory tracking)
 //! - [`estimation`]: State estimators (EKF, load-cable estimator)
 //! - [`simulation`]: Simulation framework
 
 pub mod math;
 pub mod dynamics;
+pub mod kinematics;
 pub mod control;
 pub mod estimation;
 pub mod simulation;

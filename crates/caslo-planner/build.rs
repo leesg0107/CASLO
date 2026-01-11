@@ -37,7 +37,13 @@ fn build_acados() {
             "/usr/local/acados".to_string()
         } else {
             let home = env::var("HOME").unwrap_or_default();
-            format!("{}/acados", home)
+            // Check ~/Github/acados first (common location)
+            let github_acados = format!("{}/Github/acados", home);
+            if PathBuf::from(&github_acados).exists() {
+                github_acados
+            } else {
+                format!("{}/acados", home)
+            }
         }
     });
 
@@ -133,11 +139,26 @@ fn build_acados() {
 
     build.compile("caslo_acados");
 
-    // Link ACADOS libraries
+    // Link ACADOS libraries and dependencies
     println!("cargo:rustc-link-search=native={}/lib", acados_dir);
-    println!("cargo:rustc-link-lib=acados");
-    println!("cargo:rustc-link-lib=blasfeo");
+
+    // Link QP solvers first (ACADOS depends on them)
+    println!("cargo:rustc-link-lib=qpOASES_e");  // qpOASES embedded
+    println!("cargo:rustc-link-lib=osqp");       // OSQP solver
+    println!("cargo:rustc-link-lib=qdldl");      // QDLDL for OSQP
+
+    // Link core ACADOS libraries
     println!("cargo:rustc-link-lib=hpipm");
+    println!("cargo:rustc-link-lib=blasfeo");
+    println!("cargo:rustc-link-lib=acados");
+
+    // Link the generated solver library if it exists
+    let solver_lib = generated_dir.join(format!("libacados_ocp_solver_caslo_{}quad.so", num_quads));
+    if solver_lib.exists() {
+        println!("cargo:rustc-link-search=native={}", generated_dir.display());
+        println!("cargo:rustc-link-lib=acados_ocp_solver_caslo_{}quad", num_quads);
+        println!("cargo:warning=Linking generated solver: {:?}", solver_lib);
+    }
 
     // Also link math library
     println!("cargo:rustc-link-lib=m");

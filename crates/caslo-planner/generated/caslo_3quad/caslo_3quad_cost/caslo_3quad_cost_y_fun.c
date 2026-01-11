@@ -52,14 +52,14 @@ extern "C" {
   #endif
 #endif
 
-static const casadi_int casadi_s0[3] = {34, 1, 1};
+static const casadi_int casadi_s0[3] = {55, 1, 1};
 static const casadi_int casadi_s1[3] = {12, 1, 1};
 static const casadi_int casadi_s2[3] = {0, 1, 1};
 static const casadi_int casadi_s3[3] = {0, 0, 1};
 static const casadi_int casadi_s4[3] = {22, 1, 1};
 static const casadi_int casadi_s5[3] = {24, 1, 1};
 
-/* caslo_3quad_cost_y_fun:(i0[34],i1[12],i2[0],i3[],i4[22])->(o0[24]) */
+/* caslo_3quad_cost_y_fun:(i0[55],i1[12],i2[0],i3[],i4[22])->(o0[24]) */
 static int casadi_f0(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem) {
   casadi_real a0;
   a0=arg[0]? arg[0][0] : 0;

@@ -97,6 +97,27 @@ int main()
     x_current[31] = 0.0;
     x_current[32] = 0.0;
     x_current[33] = 0.0;
+    x_current[34] = 0.0;
+    x_current[35] = 0.0;
+    x_current[36] = 0.0;
+    x_current[37] = 0.0;
+    x_current[38] = 0.0;
+    x_current[39] = 0.0;
+    x_current[40] = 0.0;
+    x_current[41] = 0.0;
+    x_current[42] = 0.0;
+    x_current[43] = 0.0;
+    x_current[44] = 0.0;
+    x_current[45] = 0.0;
+    x_current[46] = 0.0;
+    x_current[47] = 0.0;
+    x_current[48] = 0.0;
+    x_current[49] = 0.0;
+    x_current[50] = 0.0;
+    x_current[51] = 0.0;
+    x_current[52] = 0.0;
+    x_current[53] = 0.0;
+    x_current[54] = 0.0;
 
   
     x_current[0] = 0;
@@ -130,9 +151,30 @@ int main()
     x_current[28] = 0;
     x_current[29] = 0;
     x_current[30] = 0;
-    x_current[31] = 5;
-    x_current[32] = 5;
-    x_current[33] = 5;
+    x_current[31] = 0;
+    x_current[32] = 0;
+    x_current[33] = 0;
+    x_current[34] = 0;
+    x_current[35] = 0;
+    x_current[36] = 0;
+    x_current[37] = 0;
+    x_current[38] = 0;
+    x_current[39] = 0;
+    x_current[40] = 0;
+    x_current[41] = 0;
+    x_current[42] = 0;
+    x_current[43] = 0;
+    x_current[44] = 0;
+    x_current[45] = 0;
+    x_current[46] = 0;
+    x_current[47] = 0;
+    x_current[48] = 0;
+    x_current[49] = 5;
+    x_current[50] = 5;
+    x_current[51] = 5;
+    x_current[52] = 0;
+    x_current[53] = 0;
+    x_current[54] = 0;
     
   
 
@@ -166,14 +208,14 @@ int main()
     p[10] = 1;
     p[11] = 1;
     p[12] = 1;
-    p[13] = 0.1;
+    p[13] = 0.3;
     p[14] = 0;
     p[15] = 0;
-    p[16] = -0.04999999999999999;
-    p[17] = 0.08660254037844388;
+    p[16] = -0.14999999999999994;
+    p[17] = 0.2598076211353316;
     p[18] = 0;
-    p[19] = -0.05000000000000005;
-    p[20] = -0.08660254037844384;
+    p[19] = -0.15000000000000013;
+    p[20] = -0.2598076211353315;
     p[21] = 0;
 
     caslo_3quad_acados_sim_update_params(capsule, p, NP);

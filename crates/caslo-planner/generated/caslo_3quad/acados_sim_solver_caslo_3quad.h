@@ -34,7 +34,7 @@
 #include "acados_c/sim_interface.h"
 #include "acados_c/external_function_interface.h"
 
-#define CASLO_3QUAD_NX     34
+#define CASLO_3QUAD_NX     55
 #define CASLO_3QUAD_NZ     0
 #define CASLO_3QUAD_NU     12
 #define CASLO_3QUAD_NP     22

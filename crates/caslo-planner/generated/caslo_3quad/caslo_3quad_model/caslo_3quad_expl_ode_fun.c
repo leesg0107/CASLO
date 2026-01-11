@@ -52,11 +52,11 @@ extern "C" {
 
 casadi_real casadi_sq(casadi_real x) { return x*x;}
 
-static const casadi_int casadi_s0[3] = {34, 1, 1};
+static const casadi_int casadi_s0[3] = {55, 1, 1};
 static const casadi_int casadi_s1[3] = {12, 1, 1};
 static const casadi_int casadi_s2[3] = {22, 1, 1};
 
-/* caslo_3quad_expl_ode_fun:(i0[34],i1[12],i2[22])->(o0[34]) */
+/* caslo_3quad_expl_ode_fun:(i0[55],i1[12],i2[22])->(o0[55]) */
 static int casadi_f0(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem) {
   casadi_real a00, a01, a02, a03, a04, a05, a06, a07, a08, a09, a10, a11;
   casadi_real a12, a13, a14, a15, a16, a17, a18, a19, a20, a21, a22, a23;
@@ -69,14 +69,14 @@ static int casadi_f0(const casadi_real** arg, casadi_real** res, casadi_int* iw,
   if (res[0]!=0) res[0][1]=a00;
   a00=arg[0]? arg[0][5] : 0;
   if (res[0]!=0) res[0][2]=a00;
-  a00=arg[0]? arg[0][31] : 0;
+  a00=arg[0]? arg[0][49] : 0;
   a01=arg[0]? arg[0][13] : 0;
   a02=(a00*a01);
-  a03=arg[0]? arg[0][32] : 0;
+  a03=arg[0]? arg[0][50] : 0;
   a04=arg[0]? arg[0][16] : 0;
   a05=(a03*a04);
   a02=(a02+a05);
-  a05=arg[0]? arg[0][33] : 0;
+  a05=arg[0]? arg[0][51] : 0;
   a06=arg[0]? arg[0][19] : 0;
   a07=(a05*a06);
   a02=(a02+a07);
@@ -412,30 +412,72 @@ static int casadi_f0(const casadi_real** arg, casadi_real** res, casadi_int* iw,
   a31=(a31*a06);
   a24=(a24-a31);
   if (res[0]!=0) res[0][21]=a24;
-  a24=arg[1]? arg[1][0] : 0;
+  a24=arg[0]? arg[0][31] : 0;
   if (res[0]!=0) res[0][22]=a24;
-  a24=arg[1]? arg[1][1] : 0;
+  a24=arg[0]? arg[0][32] : 0;
   if (res[0]!=0) res[0][23]=a24;
-  a24=arg[1]? arg[1][2] : 0;
+  a24=arg[0]? arg[0][33] : 0;
   if (res[0]!=0) res[0][24]=a24;
-  a24=arg[1]? arg[1][3] : 0;
+  a24=arg[0]? arg[0][34] : 0;
   if (res[0]!=0) res[0][25]=a24;
-  a24=arg[1]? arg[1][4] : 0;
+  a24=arg[0]? arg[0][35] : 0;
   if (res[0]!=0) res[0][26]=a24;
-  a24=arg[1]? arg[1][5] : 0;
+  a24=arg[0]? arg[0][36] : 0;
   if (res[0]!=0) res[0][27]=a24;
-  a24=arg[1]? arg[1][6] : 0;
+  a24=arg[0]? arg[0][37] : 0;
   if (res[0]!=0) res[0][28]=a24;
-  a24=arg[1]? arg[1][7] : 0;
+  a24=arg[0]? arg[0][38] : 0;
   if (res[0]!=0) res[0][29]=a24;
-  a24=arg[1]? arg[1][8] : 0;
+  a24=arg[0]? arg[0][39] : 0;
   if (res[0]!=0) res[0][30]=a24;
-  a24=arg[1]? arg[1][9] : 0;
+  a24=arg[0]? arg[0][40] : 0;
   if (res[0]!=0) res[0][31]=a24;
-  a24=arg[1]? arg[1][10] : 0;
+  a24=arg[0]? arg[0][41] : 0;
   if (res[0]!=0) res[0][32]=a24;
-  a24=arg[1]? arg[1][11] : 0;
+  a24=arg[0]? arg[0][42] : 0;
   if (res[0]!=0) res[0][33]=a24;
+  a24=arg[0]? arg[0][43] : 0;
+  if (res[0]!=0) res[0][34]=a24;
+  a24=arg[0]? arg[0][44] : 0;
+  if (res[0]!=0) res[0][35]=a24;
+  a24=arg[0]? arg[0][45] : 0;
+  if (res[0]!=0) res[0][36]=a24;
+  a24=arg[0]? arg[0][46] : 0;
+  if (res[0]!=0) res[0][37]=a24;
+  a24=arg[0]? arg[0][47] : 0;
+  if (res[0]!=0) res[0][38]=a24;
+  a24=arg[0]? arg[0][48] : 0;
+  if (res[0]!=0) res[0][39]=a24;
+  a24=arg[1]? arg[1][0] : 0;
+  if (res[0]!=0) res[0][40]=a24;
+  a24=arg[1]? arg[1][1] : 0;
+  if (res[0]!=0) res[0][41]=a24;
+  a24=arg[1]? arg[1][2] : 0;
+  if (res[0]!=0) res[0][42]=a24;
+  a24=arg[1]? arg[1][3] : 0;
+  if (res[0]!=0) res[0][43]=a24;
+  a24=arg[1]? arg[1][4] : 0;
+  if (res[0]!=0) res[0][44]=a24;
+  a24=arg[1]? arg[1][5] : 0;
+  if (res[0]!=0) res[0][45]=a24;
+  a24=arg[1]? arg[1][6] : 0;
+  if (res[0]!=0) res[0][46]=a24;
+  a24=arg[1]? arg[1][7] : 0;
+  if (res[0]!=0) res[0][47]=a24;
+  a24=arg[1]? arg[1][8] : 0;
+  if (res[0]!=0) res[0][48]=a24;
+  a24=arg[0]? arg[0][52] : 0;
+  if (res[0]!=0) res[0][49]=a24;
+  a24=arg[0]? arg[0][53] : 0;
+  if (res[0]!=0) res[0][50]=a24;
+  a24=arg[0]? arg[0][54] : 0;
+  if (res[0]!=0) res[0][51]=a24;
+  a24=arg[1]? arg[1][9] : 0;
+  if (res[0]!=0) res[0][52]=a24;
+  a24=arg[1]? arg[1][10] : 0;
+  if (res[0]!=0) res[0][53]=a24;
+  a24=arg[1]? arg[1][11] : 0;
+  if (res[0]!=0) res[0][54]=a24;
   return 0;
 }
 

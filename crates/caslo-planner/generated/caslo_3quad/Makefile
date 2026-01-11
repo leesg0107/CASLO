@@ -46,6 +46,8 @@ MODEL_OBJ := $(MODEL_SRC:.c=.o)
 OCP_SRC=
 
 
+OCP_SRC+= caslo_3quad_constraints/caslo_3quad_constr_h_fun_jac_uxt_zt.c
+OCP_SRC+= caslo_3quad_constraints/caslo_3quad_constr_h_fun.c
 OCP_SRC+= caslo_3quad_cost/caslo_3quad_cost_y_0_fun.c
 OCP_SRC+= caslo_3quad_cost/caslo_3quad_cost_y_0_fun_jac_ut_xt.c
 OCP_SRC+= caslo_3quad_cost/caslo_3quad_cost_y_0_hess.c
@@ -82,8 +84,8 @@ OBJ+= $(OCP_OBJ)
 EXTERNAL_DIR=
 EXTERNAL_LIB=
 
-INCLUDE_PATH = /Users/leesg17/Github/acados/include
-LIB_PATH = /Users/leesg17/Github/acados/lib
+INCLUDE_PATH = /home/leesg17/Github/acados/include
+LIB_PATH = /home/leesg17/Github/acados/lib
 
 # preprocessor flags for make's implicit rules
 CPPFLAGS+= -I$(INCLUDE_PATH)
@@ -110,9 +112,9 @@ LDLIBS+= -lm
 LDLIBS+= 
 
 # libraries
-LIBACADOS_SOLVER=libacados_solver_caslo_3quad.dylib
-LIBACADOS_OCP_SOLVER=libacados_ocp_solver_caslo_3quad.dylib
-LIBACADOS_SIM_SOLVER=lib$(SIM_SRC:.c=.dylib)
+LIBACADOS_SOLVER=libacados_solver_caslo_3quad.so
+LIBACADOS_OCP_SOLVER=libacados_ocp_solver_caslo_3quad.so
+LIBACADOS_SIM_SOLVER=lib$(SIM_SRC:.c=.so)
 
 # virtual targets
 .PHONY : all clean
@@ -143,7 +145,7 @@ ocp_cython_c: ocp_shared_lib
 	-o acados_ocp_solver_pyx.c \
 	-I $(INCLUDE_PATH)/../interfaces/acados_template/acados_template \
 	$(INCLUDE_PATH)/../interfaces/acados_template/acados_template/acados_ocp_solver_pyx.pyx \
-	-I /Users/leesg17/Github/CASLO/crates/caslo-planner/generated/caslo_3quad \
+	-I /home/leesg17/Github/CASLO/crates/caslo-planner/generated/caslo_3quad \
 
 ocp_cython_o: ocp_cython_c
 	$(CC) $(ACADOS_FLAGS) -c -O2 \
@@ -153,16 +155,16 @@ ocp_cython_o: ocp_cython_c
 	-I $(INCLUDE_PATH)/blasfeo/include/ \
 	-I $(INCLUDE_PATH)/hpipm/include/ \
 	-I $(INCLUDE_PATH) \
-	-I /Users/leesg17/miniconda3/envs/caslo/lib/python3.11/site-packages/numpy/_core/include \
-	-I /Users/leesg17/miniconda3/envs/caslo/include/python3.11 \
+	-I /home/leesg17/miniconda3/lib/python3.12/site-packages/numpy/core/include \
+	-I /home/leesg17/miniconda3/include/python3.12 \
 	acados_ocp_solver_pyx.c \
 
 ocp_cython: ocp_cython_o
 	$(CC) $(ACADOS_FLAGS) -shared \
-	-o acados_ocp_solver_pyx.dylib \
+	-o acados_ocp_solver_pyx.so \
 	-Wl,-rpath=$(LIB_PATH) \
 	acados_ocp_solver_pyx.o \
-	$(abspath .)/libacados_ocp_solver_caslo_3quad.dylib \
+	$(abspath .)/libacados_ocp_solver_caslo_3quad.so \
 	$(LDFLAGS) $(LDLIBS)
 
 
@@ -172,7 +174,7 @@ sim_cython_c: sim_shared_lib
 	-o acados_sim_solver_pyx.c \
 	-I $(INCLUDE_PATH)/../interfaces/acados_template/acados_template \
 	$(INCLUDE_PATH)/../interfaces/acados_template/acados_template/acados_sim_solver_pyx.pyx \
-	-I /Users/leesg17/Github/CASLO/crates/caslo-planner/generated/caslo_3quad \
+	-I /home/leesg17/Github/CASLO/crates/caslo-planner/generated/caslo_3quad \
 
 sim_cython_o: sim_cython_c
 	$(CC) $(ACADOS_FLAGS) -c -O2 \
@@ -182,16 +184,16 @@ sim_cython_o: sim_cython_c
 	-I $(INCLUDE_PATH)/blasfeo/include/ \
 	-I $(INCLUDE_PATH)/hpipm/include/ \
 	-I $(INCLUDE_PATH) \
-	-I /Users/leesg17/miniconda3/envs/caslo/lib/python3.11/site-packages/numpy/_core/include \
-	-I /Users/leesg17/miniconda3/envs/caslo/include/python3.11 \
+	-I /home/leesg17/miniconda3/lib/python3.12/site-packages/numpy/core/include \
+	-I /home/leesg17/miniconda3/include/python3.12 \
 	acados_sim_solver_pyx.c \
 
 sim_cython: sim_cython_o
 	$(CC) $(ACADOS_FLAGS) -shared \
-	-o acados_sim_solver_pyx.dylib \
+	-o acados_sim_solver_pyx.so \
 	-Wl,-rpath=$(LIB_PATH) \
 	acados_sim_solver_pyx.o \
-	$(abspath .)/libacados_sim_solver_caslo_3quad.dylib \
+	$(abspath .)/libacados_sim_solver_caslo_3quad.so \
 	$(LDFLAGS) $(LDLIBS)
 
 clean:
@@ -203,13 +205,13 @@ clean_ocp_shared_lib:
 	$(RM) $(OCP_OBJ)
 
 clean_ocp_cython:
-	$(RM) libacados_ocp_solver_caslo_3quad.dylib
+	$(RM) libacados_ocp_solver_caslo_3quad.so
 	$(RM) acados_solver_caslo_3quad.o
-	$(RM) acados_ocp_solver_pyx.dylib
+	$(RM) acados_ocp_solver_pyx.so
 	$(RM) acados_ocp_solver_pyx.o
 
 clean_sim_cython:
-	$(RM) libacados_sim_solver_caslo_3quad.dylib
+	$(RM) libacados_sim_solver_caslo_3quad.so
 	$(RM) acados_sim_solver_caslo_3quad.o
-	$(RM) acados_sim_solver_pyx.dylib
+	$(RM) acados_sim_solver_pyx.so
 	$(RM) acados_sim_solver_pyx.o

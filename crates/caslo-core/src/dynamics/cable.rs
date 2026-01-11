@@ -3,15 +3,17 @@
 //! Implements cable kinematics from Eq. (3) in the paper:
 //!
 //! ṡᵢ = rᵢ × sᵢ
-//! r̈ᵢ = γᵢ  (jerk input)
-//! ẗᵢ = λᵢ  (tension rate input)
+//! r̈ᵢ = γᵢ  (angular JERK input - control)
+//! ẗᵢ = λᵢ  (tension acceleration input)
 //!
 //! where:
 //! - sᵢ ∈ S² is the cable direction (unit vector)
 //! - rᵢ is the cable angular velocity
+//! - ṙᵢ is the cable angular acceleration
 //! - tᵢ is the cable tension
-//! - γᵢ is the cable angular jerk (control input)
-//! - λᵢ is the tension acceleration (control input)
+//! - ṫᵢ is the cable tension rate
+//! - γᵢ = r̈ᵢ is the cable angular JERK (control input)
+//! - λᵢ = ẗᵢ is the tension acceleration (control input)
 
 use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
@@ -19,6 +21,9 @@ use serde::{Deserialize, Serialize};
 use crate::math::sphere::{direction_derivative, integrate_direction, project_to_sphere};
 
 /// Cable state for a single cable
+///
+/// State vector per cable from paper Eq. (1):
+/// [sᵢ, rᵢ, ṙᵢ, tᵢ, ṫᵢ] = 11 DOF per cable
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CableState {
     /// Cable direction (unit vector, world frame) sᵢ ∈ S²
@@ -95,10 +100,14 @@ impl CableParams {
     }
 }
 
-/// Cable control inputs
+/// Cable control inputs from paper Eq. (3)
+///
+/// Control inputs: u = [γ₁, λ₁, ..., γₙ, λₙ]
+/// - γᵢ = r̈ᵢ (angular JERK - 2nd derivative of angular velocity)
+/// - λᵢ = ẗᵢ (tension acceleration)
 #[derive(Debug, Clone, Default)]
 pub struct CableInput {
-    /// Angular jerk [rad/s³] γᵢ
+    /// Angular jerk [rad/s³] γᵢ = r̈ᵢ (control input)
     pub angular_jerk: Vector3<f64>,
     /// Tension acceleration [N/s²] λᵢ
     pub tension_acceleration: f64,
@@ -117,10 +126,12 @@ impl CableDynamics {
 
     /// Integrate cable state forward in time
     ///
-    /// Implements Eq. (3):
-    /// - ṡᵢ = rᵢ × sᵢ
-    /// - r̈ᵢ = γᵢ
-    /// - ẗᵢ = λᵢ
+    /// Implements 3rd order cable dynamics from paper Eq. (3):
+    /// - ṡᵢ = rᵢ × sᵢ  (direction kinematics on S²)
+    /// - ṙᵢ = angular_acceleration (from state)
+    /// - r̈ᵢ = γᵢ (angular JERK - control input)
+    /// - ṫᵢ = tension_rate (from state)
+    /// - ẗᵢ = λᵢ (tension acceleration - control input)
     pub fn integrate(&self, state: &CableState, input: &CableInput, dt: f64) -> CableState {
         // Direction derivative: ṡ = r × s
         let s_dot = state.direction_derivative();
@@ -131,7 +142,7 @@ impl CableDynamics {
         // Integrate angular velocity: ṙ = angular_acceleration
         let new_angular_velocity = state.angular_velocity + state.angular_acceleration * dt;
 
-        // Integrate angular acceleration: r̈ = γ
+        // Integrate angular acceleration: r̈ = γ (angular jerk from control)
         let new_angular_acceleration = state.angular_acceleration + input.angular_jerk * dt;
 
         // Integrate tension: ṫ = tension_rate
@@ -243,7 +254,7 @@ mod tests {
 
         // Direction should have rotated slightly
         assert_relative_eq!(new_state.direction.norm(), 1.0, epsilon = 1e-10);
-        // Angular velocity should be unchanged
+        // Angular velocity should be unchanged (no angular acceleration)
         assert_relative_eq!(new_state.angular_velocity, state.angular_velocity, epsilon = 1e-10);
         // Tension should be unchanged
         assert_relative_eq!(new_state.tension, state.tension, epsilon = 1e-10);
@@ -263,7 +274,7 @@ mod tests {
 
         let new_state = dynamics.integrate(&state, &input, dt);
 
-        // Angular acceleration should have increased
+        // Angular acceleration should have increased (jerk integrates to acceleration)
         assert_relative_eq!(new_state.angular_acceleration.x, 0.1, epsilon = 1e-10);
     }
 
